@@ -702,7 +702,10 @@ test.describe('no networks', () => {
       },
       interfacesEnv({ a: NETWORKS['a'] })
     )
-    await plexo.page.getByRole('button', { name: 'Scan Again' }).click()
+    // The scan immediately finds the simulated interface and replaces this screen. Dispatch
+    // the button event directly so Playwright doesn't wait for stability on a node that must
+    // disappear as soon as its click handler finishes.
+    await plexo.page.getByRole('button', { name: 'Scan Again' }).dispatchEvent('click')
     await expect(plexo.page.getByRole('textbox', { name: 'LINK' })).toBeVisible()
   })
 })

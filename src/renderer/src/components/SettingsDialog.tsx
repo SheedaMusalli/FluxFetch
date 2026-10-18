@@ -562,7 +562,8 @@ export function SettingsDialog({
           <div className="rounded-lg border border-border p-3">
             <div className="mb-2 text-sm font-medium">Software updates</div>
             <p className="mb-3 text-xs text-muted-foreground">
-              FluxFetch checks GitHub at startup, when restored, and every six hours.
+              FluxFetch checks published releases in the FluxFetch GitHub repository at startup,
+              when restored, and every six hours.
             </p>
             <Button variant="outline" size="sm" onClick={() => void checkForUpdate()}>
               <RefreshCw /> Check now

@@ -277,9 +277,11 @@ export function HistoryScreen({
                 }
               />
               <TooltipContent side="bottom">
-                Launches OmniLink with Windows administrator approval. It attempts to route
-                Steam&apos;s web downloads across your active network adapters; results depend on
-                your networks and Steam&apos;s download servers.
+                For the best chance of combining bandwidth, connect adapters to separate Internet
+                connections—for example Ethernet to Router A, Wi-Fi to Router B, and an Android
+                phone USB-tethered while it uses Router C. Adapters on the same router share one
+                Internet connection. Steam&apos;s servers, routing, and driver support still affect
+                results, so faster Steam downloads cannot be guaranteed.
               </TooltipContent>
             </Tooltip>
           )}

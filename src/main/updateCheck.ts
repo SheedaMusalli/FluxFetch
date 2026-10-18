@@ -4,7 +4,7 @@ import type { UpdateInfo } from '../shared/types'
 type ReleaseInfo = Omit<UpdateInfo, 'dismissed'>
 
 const REPO = 'SheedaMusalli/FluxFetch'
-export const UPDATE_PAGE_URL = `https://github.com/${REPO}/releases/latest`
+export const UPDATE_PAGE_URL = `https://github.com/${REPO}/releases`
 
 function parseVersion(version: string): number[] {
   // ponytail: naive numeric-segment compare, not full semver (a "1.0.0-rc.2" pre-release tag
@@ -29,9 +29,8 @@ function isNewer(latest: string, current: string): boolean {
 /** Checks the repo's latest GitHub release against the running app version. Same data source the
  * landing page's downloads list already reads, so there's no separate update feed to stand up.
  *
- * Uses the releases list rather than the `/releases/latest` endpoint: every release here ships
- * as a pre-release, and GitHub's "latest" endpoint only ever considers non-prerelease releases —
- * it 404s when there isn't one, so it would never surface an update. */
+ * Uses the releases list so FluxFetch can offer the newest published release and direct users to
+ * the FluxFetch Releases page for its notes and downloads. */
 export async function checkForUpdate(currentVersion: string): Promise<ReleaseInfo | null> {
   try {
     const response = await net.fetch(`https://api.github.com/repos/${REPO}/releases?per_page=1`)

@@ -22,31 +22,38 @@ FluxFetch can split supported files into parallel streams, route them across sel
 - **Download library** — search and filter history, open completed files, view their location and properties, refresh expired links from the source page, and batch-remove history entries.
 - **Queues and scheduling** — add batches of URLs and optionally schedule when a queue starts.
 - **Useful tools** — measure internet speed, inspect and selectively extract ZIP/RAR archives, apply download speed limits, configure proxies and authentication, and send magnet or `.torrent` links to a local qBittorrent Web UI.
-- **Optional OmniLink integration** — launch the separately packaged helper for Steam multi-interface routing. It requires Windows administrator approval and compatible network-driver support; it cannot guarantee faster Steam downloads.
+
+## OmniLink for Steam downloads
+
+**OmniLink is FluxFetch's optional multi-network Steam helper.** It attempts to route eligible Steam download connections across the adapters you select, so independent Internet connections can contribute bandwidth at the same time.
+
+For example, a desktop could use Ethernet through Router A, Wi-Fi through Router B, and an Android phone connected by USB tethering while the phone uses Router C's Wi-Fi—if that phone supports sharing its Wi-Fi uplink over USB. This setup can make more total Internet capacity available to eligible Steam transfers. Adapters connected to the same router or Internet line share that line; they do not create extra bandwidth.
+
+OmniLink needs Windows administrator approval and a compatible network-driver setup. It **does not guarantee faster Steam downloads**: Steam's CDN and connection behavior, network routes, driver compatibility, and each connection's available capacity all affect the result. The helper's tray menu lets you choose adapters and pause bonding.
 
 ## Screenshots
 
-### Download library
+### Download library and OmniLink
 
-![FluxFetch download library](docs/screenshots/history-v2.png)
+![FluxFetch home screen with the Run OmniLink control](docs/screenshots/fluxfetch-omnilink.jpg)
+
+The home screen keeps OmniLink next to Speed test. See [OmniLink for Steam downloads](#omnilink-for-steam-downloads) for how to connect separate networks and what affects results.
 
 ### Download setup and network selection
 
-![FluxFetch download setup](docs/screenshots/link-setup-v2.png)
+![FluxFetch download setup](docs/screenshots/fluxfetch-setup.jpg)
 
 ### Queue and scheduling
 
-![FluxFetch download queue](docs/screenshots/queue-v2.png)
+![FluxFetch download queue](docs/screenshots/fluxfetch-queue.jpg)
 
 ### Speed tests
 
-![FluxFetch internet speed test](docs/screenshots/speed-test-internet-v2.png)
-
-![FluxFetch combined-network speed test](docs/screenshots/speed-test-combined-v2.png)
+![FluxFetch internet speed test](docs/screenshots/fluxfetch-speed-test.jpg)
 
 ## Installation
 
-1. Download **`fluxfetch-1.0.0-setup.exe`** from the [FluxFetch v1.0.0 release](https://github.com/SheedaMusalli/FluxFetch/releases/latest) and run the installer.
+1. Download **`fluxfetch-1.0.0-setup.exe`** from the [FluxFetch Releases page](https://github.com/SheedaMusalli/FluxFetch/releases) and run the installer.
 2. Download **`FluxFetch-Chrome.zip`** from that release and extract it to a permanent folder.
 3. In Chrome, open `chrome://extensions`; in Edge, open `edge://extensions`. Enable **Developer mode**, choose **Load unpacked**, and select the extracted extension folder containing `manifest.json`.
 4. Pin **FluxFetch Download Manager** in the browser. Confirm the extension shows **Connected**.

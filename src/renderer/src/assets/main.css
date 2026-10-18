@@ -1,0 +1,251 @@
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('./fonts/Manrope-Variable.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Roboto Mono';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('./fonts/RobotoMono-Variable.woff2') format('woff2');
+}
+
+:root {
+  color-scheme: light dark;
+
+  --bg: #f4f5fb;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #e9eaf5;
+  --input-bg: #ffffff;
+  --track-bg: #e1e3ef;
+
+  --text: #1e2033;
+  --text-secondary: #545970;
+  --text-tertiary: #646a83;
+
+  --border: #dfe1ed;
+  --border-subtle: #e9eaf2;
+  --border-strong: #bec2d4;
+  --footer-border: #dfe1ed;
+
+  --icon-muted: #a7acc4;
+  --icon-muted-strong: #888eaa;
+  --scrollbar-thumb: #c6c9d9;
+
+  --checkbox-shadow: rgba(24, 26, 58, 0.14);
+  --checkbox-inset-shadow: rgba(24, 26, 58, 0.05);
+
+  --hero-bg: linear-gradient(135deg, #f1efff 0%, #edf6ff 100%);
+  --hero-border: #d9d8f5;
+
+  --color-wifi: #108c78;
+  --color-wifi-bg: #e4f7f3;
+  --color-wifi-border: #b8e9df;
+  --color-wifi-text: #086b5c;
+  --color-wifi-onsolid: #ffffff;
+
+  --color-usb: #c25736;
+  --color-usb-bg: #fff0e9;
+  --color-usb-border: #f2ccbd;
+  --color-usb-text: #923d25;
+  --color-usb-onsolid: #ffffff;
+
+  --color-ethernet: #5364c8;
+  --color-ethernet-bg: #edf0ff;
+  --color-ethernet-border: #cbd1fb;
+  --color-ethernet-text: #34449c;
+  --color-ethernet-onsolid: #ffffff;
+
+  --color-neutral: #747991;
+  --color-neutral-bg: #f0f1f7;
+  --color-neutral-border: #dfe1ed;
+  --color-neutral-text: #555b73;
+  --color-neutral-onsolid: #ffffff;
+
+  --color-accent: #6556d9;
+  --color-accent-onsolid: #ffffff;
+  --color-success: #108c78;
+
+  --color-danger: #dc2626;
+  --color-danger-bg: #fef2f2;
+  --color-danger-border: #fecaca;
+
+  /* Throughput chart's total-line color — the merge node's tone from the app icon, not raw
+     text-black, so the outline reads as part of the brand instead of a harsh axis line. */
+  --node-accent: #6556d9;
+
+  /* Shared corner radius for shadcn/Base UI components — matches the 8px most hand-styled
+     buttons/cards already use (see theme.ts), so new and existing components read as one system. */
+  --radius: 12px;
+}
+
+/* Maps shadcn/Base UI's expected semantic tokens onto FluxFetch's existing palette above, instead of
+   introducing a second, parallel color system. Tailwind only generates `bg-primary`-style
+   utilities for names declared here, in `@theme` — so this can freely reuse FluxFetch's own custom
+   property *values* (e.g. --color-accent) without colliding with their names, since only the
+   left-hand names below become Tailwind tokens. */
+@theme inline {
+  --font-sans: 'Manrope', -apple-system, 'SF Pro Text', 'Helvetica Neue', Helvetica, sans-serif;
+  --font-mono: 'Roboto Mono', 'SF Mono', ui-monospace, Menlo, monospace;
+
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-card: var(--bg-secondary);
+  --color-card-foreground: var(--text);
+  --color-popover: var(--bg-secondary);
+  --color-popover-foreground: var(--text);
+  --color-primary: var(--color-accent);
+  --color-primary-foreground: var(--color-accent-onsolid);
+  --color-secondary: var(--bg-tertiary);
+  --color-secondary-foreground: var(--text);
+  --color-muted: var(--track-bg);
+  --color-muted-foreground: var(--text-tertiary);
+  --color-destructive: var(--color-danger);
+  --color-border: var(--border);
+  /* Not --input-bg: that's a fill color (white in light mode), invisible as a stroke.
+     border-input needs an actual visible border tone. */
+  --color-input: var(--border-strong);
+  --color-ring: var(--color-accent);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --hero-bg: linear-gradient(135deg, #282442 0%, #1e2b40 100%);
+    --hero-border: #3b3a60;
+    --bg: #171925;
+    --bg-secondary: #202231;
+    --bg-tertiary: #292b3e;
+    --input-bg: #1d1f2e;
+    --track-bg: #2b2d40;
+
+    --text: #f0f0fa;
+    --text-secondary: #b0b3ca;
+    --text-tertiary: #969bb7;
+
+    --border: #34364a;
+    --border-subtle: #292b3d;
+    --border-strong: #44475d;
+    --footer-border: #34364a;
+
+    --icon-muted: #44475d;
+    --icon-muted-strong: #565a73;
+    --scrollbar-thumb: #4a4d64;
+
+    --checkbox-shadow: rgba(0, 0, 0, 0.4);
+    --checkbox-inset-shadow: rgba(0, 0, 0, 0.3);
+
+    --color-wifi: #56d8bd;
+    --color-wifi-bg: #203b3b;
+    --color-wifi-border: #35635c;
+    --color-wifi-text: #8be5d2;
+    --color-wifi-onsolid: #10201d;
+
+    --color-usb: #ff9b76;
+    --color-usb-bg: #3b2b2b;
+    --color-usb-border: #69473f;
+    --color-usb-text: #ffb49a;
+    --color-usb-onsolid: #24140f;
+
+    --color-ethernet: #9ca9ff;
+    --color-ethernet-bg: #292d4c;
+    --color-ethernet-border: #464d7f;
+    --color-ethernet-text: #b8c1ff;
+    --color-ethernet-onsolid: #17182b;
+
+    --color-neutral: #a1a5bd;
+    --color-neutral-bg: #2b2d3e;
+    --color-neutral-border: #46495d;
+    --color-neutral-text: #c1c4d8;
+    --color-neutral-onsolid: #161821;
+
+    --color-accent: #a99aff;
+    --color-accent-onsolid: #19152d;
+    --color-success: #56d8bd;
+
+    --color-danger: #eda3a3;
+    --color-danger-bg: #2c1c1c;
+    --color-danger-border: #4a2a2a;
+
+    --node-accent: #c5bcff;
+  }
+}
+
+/* Layered, not plain global CSS, so Tailwind utility classes still win over these resets.
+   Tailwind puts its own utilities in a later layer than base styles, and unlayered CSS beats
+   every layer regardless of specificity, so an unlayered button font reset here previously
+   overrode every text and font utility on every button in the app. box-sizing, margin and
+   padding resets, and the default font family, are already handled by Tailwind Preflight, so
+   they are not repeated here. Body, html and root element sizing now live as utility classes
+   in index.html instead. */
+@layer base {
+  input,
+  [contenteditable] {
+    user-select: text;
+  }
+
+  button {
+    font: inherit;
+  }
+
+  /* No core Tailwind utility for scrollbar pseudo-elements. */
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: 9999px;
+  }
+}
+
+@keyframes plexo-dash {
+  to {
+    stroke-dashoffset: -60;
+  }
+}
+
+@keyframes plexo-glow {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes plexo-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

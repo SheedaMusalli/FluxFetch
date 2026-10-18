@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>FluxFetch</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <img src="icon.png" alt="" />
+      <div>
+        <h1>FluxFetch</h1>
+        <span>Browser integration</span>
+      </div>
+      <button id="open">Open app</button>
+    </header>
+    <p id="status" role="status">Connecting to the Windows app…</p>
+    <label class="toggle"
+      ><input type="checkbox" id="capture" /> Capture browser downloads automatically</label
+    >
+    <label class="toggle"
+      ><input type="checkbox" id="pageButtons" /> Show download buttons on media (including
+      YouTube)</label
+    >
+    <p class="hint">
+      Download buttons appear beside direct audio or video players. Downloads a site refuses to send
+      to FluxFetch stay in your browser.
+    </p>
+    <form id="send">
+      <label for="url">Download a direct link</label>
+      <div class="row">
+        <input id="url" type="url" placeholder="https://example.com/file.zip" required /><button>
+          Add
+        </button>
+      </div>
+    </form>
+    <section>
+      <h2>Download queue</h2>
+      <div id="current"></div>
+      <div id="queue">No queued downloads.</div>
+    </section>
+    <section>
+      <div class="row">
+        <h2>Media on this page</h2>
+        <button id="scan">Find media</button>
+      </div>
+      <div id="media" class="hint">
+        Use the button beside a direct media player, or scan for direct media here.
+      </div>
+    </section>
+    <details>
+      <summary>Settings and setup</summary>
+      <label for="excluded">Keep these sites in Chrome</label
+      ><textarea id="excluded" placeholder="example.com, another.com"></textarea
+      ><button id="save">Save settings</button>
+      <p>
+        Install the FluxFetch Windows app first. Closing its window keeps downloads running in the
+        system tray. Use its tray menu to quit.
+      </p>
+      <p>
+        DRM, HLS/DASH playlists, blob videos, and sites requiring interactive challenges cannot be
+        transferred.
+      </p>
+    </details>
+    <p id="message" role="status"></p>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

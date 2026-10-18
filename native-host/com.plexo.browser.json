@@ -1,0 +1,7 @@
+{
+  "name": "com.plexo.browser",
+  "description": "FluxFetch browser integration",
+  "path": "Plexo.BrowserHost.exe",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://hhepjnimojcdbcifmjaflopikglidjbo/"]
+}

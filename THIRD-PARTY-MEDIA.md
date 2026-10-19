@@ -4,6 +4,8 @@ FluxFetch downloads the pinned YouTube/video helpers on first use into its per-u
 
 ZIP preview and selective extraction use `adm-zip` 0.6.1 (MIT). RAR preview and extraction use `node-unrar-js` 2.0.2 (MIT), which incorporates the UnRAR extraction code; FluxFetch uses it only to extract RAR files, never to create them. Split-volume RAR archives are not supported. The package license notices are included in `third-party-licenses` and the installed `legal/third-party-licenses` folder.
 
+BitTorrent transfers use native libtorrent 2.1.1 bindings with an embedded CPython 3.13.16 runtime. FluxFetch's independent session controller communicates through private parent-process pipes; no qBittorrent installation, Web UI, or local torrent RPC listener is used. libtorrent is BSD-licensed, Boost uses the Boost Software License, and CPython uses its PSF license and incorporated-component notices. Their license texts are included in `legal/third-party-licenses`, with the runtime license also in the bundled runtime folder. Original download URLs, versions and archive SHA-256 digests are pinned in `torrent-engine.lock.json`. The qBittorrent session architecture was used as a reference; its GPL-covered source is not incorporated into this implementation.
+
 The optional remote dashboard uses `selfsigned` to create a local HTTPS certificate; its license notice is also included in `third-party-licenses`.
 
 - yt-dlp 2026.08.19: https://github.com/yt-dlp/yt-dlp/tree/2026.08.19 — its Windows executable includes additional third-party components; see the upstream license notice and source repository.

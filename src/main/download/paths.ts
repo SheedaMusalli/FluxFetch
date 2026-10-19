@@ -59,7 +59,7 @@ export async function ensureDirectory(directory: string): Promise<void> {
 }
 
 /**
- * Claims a download by exclusively creating <final name>.plexo. The final name
+ * Claims a download by exclusively creating <final name>.fluxfetch. The final name
  * itself does not appear until the file is complete. An existing partial file
  * also claims its corresponding final name, including after a restart.
  */
@@ -67,8 +67,8 @@ export async function reserveDestinationPath(directory: string, fileName: string
   await ensureDirectory(directory)
   fileName = sanitizeFileName(fileName)
   const ext = extname(fileName)
-  // Leave room for " (9999).plexo" within the usual 255-byte component limit.
-  const suffixRoom = Buffer.byteLength(' (9999).plexo')
+  // Leave room for " (9999).fluxfetch" within the usual 255-byte component limit.
+  const suffixRoom = Buffer.byteLength(' (9999).fluxfetch')
   const maxBaseBytes = 255 - suffixRoom - Buffer.byteLength(ext)
   if (maxBaseBytes <= 0) throw new Error('The file extension is too long')
   const baseCharacters = Array.from(basename(fileName, ext))
@@ -82,10 +82,10 @@ export async function reserveDestinationPath(directory: string, fileName: string
         : join(directory, `${base} (${counter})${ext}`)
     if (await pathExists(candidate)) continue
     try {
-      const handle = await open(`${candidate}.plexo`, 'wx+')
+      const handle = await open(`${candidate}.fluxfetch`, 'wx+')
       await handle.close()
       if (await pathExists(candidate)) {
-        await rm(`${candidate}.plexo`)
+        await rm(`${candidate}.fluxfetch`)
         continue
       }
       return candidate

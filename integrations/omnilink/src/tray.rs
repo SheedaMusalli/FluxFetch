@@ -22,6 +22,7 @@ const ID_REFRESH_NICS: &str = "refresh_nics";
 const ID_AUTOSTART: &str = "toggle_autostart";
 const ID_QUIT: &str = "quit_app";
 const ADAPTER_ID_PREFIX: &str = "nic_";
+const ADAPTER_RESCAN_INTERVAL: Duration = Duration::from_secs(2);
 
 pub struct OmniLinkTrayApp {
     load_balancer: Arc<LoadBalancer>,
@@ -36,6 +37,7 @@ pub struct OmniLinkTrayApp {
     adapters_submenu: Submenu,
     adapter_menu_items: HashMap<u32, CheckMenuItem>,
     last_ui_refresh: Instant,
+    last_adapter_scan: Instant,
 }
 
 impl OmniLinkTrayApp {
@@ -44,7 +46,7 @@ impl OmniLinkTrayApp {
         interceptor: Arc<SteamInterceptor>,
         overlay: Arc<crate::overlay::OverlayController>,
     ) -> Self {
-        let header_item = MenuItem::with_id(ID_HEADER, "OmniLink: Active (0.0 Mbps)", false, None);
+        let header_item = MenuItem::with_id(ID_HEADER, "Steam: Checking status…", false, None);
         let toggle_bonding_item = CheckMenuItem::with_id(
             ID_TOGGLE_BONDING,
             "Enable Multi-NIC Bonding (steam.exe)",
@@ -83,6 +85,7 @@ impl OmniLinkTrayApp {
             adapters_submenu,
             adapter_menu_items: HashMap::new(),
             last_ui_refresh: Instant::now(),
+            last_adapter_scan: Instant::now(),
         }
     }
 
@@ -159,20 +162,41 @@ impl OmniLinkTrayApp {
         }
     }
 
+    fn refresh_adapters(&mut self) {
+        if let Ok(discovered) = discover_routable_adapters() {
+            if self.load_balancer.sync_adapters(discovered) {
+                // Recreate the menu items so an attached, reconnected, or renamed network is
+                // available immediately without restarting OmniLink.
+                self.rebuild_adapter_submenu();
+                self.refresh_live_telemetry();
+            }
+        }
+        self.last_adapter_scan = Instant::now();
+    }
+
     fn refresh_live_telemetry(&mut self) {
-        let total_mbps = self.load_balancer.total_mbps();
+        let steam_running = self.interceptor.is_steam_process_running();
+        let total_mbps = if steam_running {
+            self.load_balancer.total_mbps()
+        } else {
+            0.0
+        };
         let interceptor_ready = self.interceptor.is_running();
         let active = self.load_balancer.is_bonding_enabled() && interceptor_ready;
 
-        let status_text = if !interceptor_ready {
+        let status_text = if !steam_running {
+            "Steam: Not running · 0.0 Mbps".to_string()
+        } else if !interceptor_ready {
             format!(
-                "OmniLink: Interception unavailable ({:.1} Mbps)",
+                "Steam: Running · OmniLink unavailable · {:.1} Mbps",
                 total_mbps
             )
+        } else if total_mbps > 0.0 {
+            format!("Steam: Downloading · {:.1} Mbps", total_mbps)
         } else if active {
-            format!("OmniLink: Active ({:.1} Mbps)", total_mbps)
+            "Steam: Running · 0.0 Mbps".to_string()
         } else {
-            format!("OmniLink: Paused ({:.1} Mbps)", total_mbps)
+            "Steam: Running · OmniLink paused · 0.0 Mbps".to_string()
         };
         self.header_item.set_text(&status_text);
         self.toggle_bonding_item.set_checked(active);
@@ -187,7 +211,12 @@ impl OmniLinkTrayApp {
 
         for state in self.load_balancer.snapshot_states() {
             if let Some(item) = self.adapter_menu_items.get(&state.adapter.if_index) {
-                let updated_label = state.adapter.tray_label(state.current_mbps());
+                let speed = if steam_running && self.load_balancer.is_steam_downloading() {
+                    state.current_mbps()
+                } else {
+                    0.0
+                };
+                let updated_label = state.adapter.tray_label(speed);
                 item.set_text(updated_label);
             }
         }
@@ -222,10 +251,7 @@ impl OmniLinkTrayApp {
                     .set_scheduling_mode(SchedulingMode::RoundRobin);
             }
             ID_REFRESH_NICS => {
-                if let Ok(discovered) = discover_routable_adapters() {
-                    self.load_balancer.sync_adapters(discovered);
-                    self.rebuild_adapter_submenu();
-                }
+                self.refresh_adapters();
             }
             ID_AUTOSTART => {
                 let target_state = !is_autostart_enabled();
@@ -277,6 +303,10 @@ impl ApplicationHandler for OmniLinkTrayApp {
         if self.last_ui_refresh.elapsed() >= Duration::from_secs(1) {
             self.refresh_live_telemetry();
             self.last_ui_refresh = Instant::now();
+        }
+
+        if self.last_adapter_scan.elapsed() >= ADAPTER_RESCAN_INTERVAL {
+            self.refresh_adapters();
         }
 
         event_loop.set_control_flow(ControlFlow::WaitUntil(

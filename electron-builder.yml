@@ -1,4 +1,4 @@
-appId: com.plexo.app
+appId: com.fluxfetch.app
 productName: FluxFetch
 directories:
   buildResources: build
@@ -12,12 +12,17 @@ extraResources:
     to: legal/third-party-licenses
   - from: native-host
     to: browser
-    filter: ['Plexo.BrowserHost.exe', '*.json', '*.txt']
+    filter: ['FluxFetch.BrowserHost.exe', '*.json', '*.txt']
   - from: extension
     to: extension
+  - from: extension-firefox
+    to: extension-firefox
 files:
-  - '!{extension,native-host,media-tools,e2e,scripts,release,outputs,release-settings-build,.signing}/**'
+  - '!{extension,extension-firefox,native-host,media-tools,e2e,scripts,release,outputs,artifacts,test-results,playwright-report,release-settings-build,Installed,.signing}/**'
   - '!integrations/omnilink/**'
+  - '!resources/torrent/**'
+  - '!resources/torrent-engine/**'
+  - '!integrations/torrent-engine/**'
   - '!resources/omnilink/**'
   - '!**/.vscode/*'
   - '!src/*'
@@ -29,25 +34,40 @@ files:
   - '!node_modules/koffi/build/koffi/!(linux_x64|linux_arm64)/**'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
-  - resources/**
+  - resources/icon-dark.png
+  - resources/icon.ico
 win:
+  compression: maximum
   executableName: fluxfetch
+  icon: build/icon.ico
   extraResources:
     - from: resources/omnilink
       to: omnilink
+    - from: resources/torrent-engine
+      to: torrent
+      filter: ['**/*', '!**/__pycache__/**', '!**/*.pyi', '!**/pythonw.exe']
   target:
     - target: nsis
       arch: [x64]
 nsis:
+  # Retain the existing Windows uninstall identity so this release upgrades in place.
+  guid: 0c9b690a-2a86-5845-88ba-6628b5cb864e
   # No ${arch} on purpose: one installer holds both x64 and ARM64, and docs/downloads.js reads an
   # installer with no architecture in its name as exactly that. Add one here and update it there.
   artifactName: ${name}-${version}-setup.${ext}
   # Assisted installer instead of one-click, so users can choose the install folder (and drive).
   # One-click always installs to %LOCALAPPDATA%\Programs with no way to change it.
   oneClick: false
-  allowToChangeInstallationDirectory: true
+  # The custom configuration page owns folder selection.
+  allowToChangeInstallationDirectory: false
+  installerSidebar: build/installerSidebar.bmp
+  uninstallerSidebar: build/installerSidebar.bmp
+  installerHeader: build/installerHeader.bmp
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
+  createStartMenuShortcut: false
   createDesktopShortcut: always
 mac:
   target:

@@ -29,18 +29,56 @@ fs.writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`)
 fs.copyFileSync(path.join(root, 'build', 'icon.png'), path.join(root, 'extension', 'icon.png'))
 fs.writeFileSync(path.join(root, 'native-host', 'extension-id.txt'), id)
 fs.writeFileSync(
-  path.join(root, 'native-host', 'com.plexo.browser.json'),
+  path.join(root, 'native-host', 'com.fluxfetch.browser.json'),
   `${JSON.stringify(
     {
-      name: 'com.plexo.browser',
+      name: 'com.fluxfetch.browser',
       description: 'FluxFetch browser integration',
-      path: 'Plexo.BrowserHost.exe',
+      path: 'FluxFetch.BrowserHost.exe',
       type: 'stdio',
       allowed_origins: [`chrome-extension://${id}/`]
     },
     null,
     2
   )}\n`
+)
+const firefoxId = 'fluxfetch@fluxfetch.app'
+const firefoxManifestFile = path.join(root, 'native-host', 'com.fluxfetch.browser.firefox.json')
+fs.writeFileSync(
+  firefoxManifestFile,
+  `${JSON.stringify(
+    {
+      name: 'com.fluxfetch.browser',
+      description: 'FluxFetch browser integration for Firefox',
+      path: 'FluxFetch.BrowserHost.exe',
+      type: 'stdio',
+      allowed_extensions: [firefoxId]
+    },
+    null,
+    2
+  )}\n`
+)
+
+// Keep a complete, load-unpacked Firefox clone beside the Chromium extension.
+const firefoxDir = path.join(root, 'extension-firefox')
+fs.rmSync(firefoxDir, { recursive: true, force: true })
+fs.cpSync(path.join(root, 'extension'), firefoxDir, { recursive: true })
+const firefoxManifestPath = path.join(firefoxDir, 'manifest.json')
+const firefoxManifest = JSON.parse(fs.readFileSync(firefoxManifestPath, 'utf8'))
+delete firefoxManifest.key
+delete firefoxManifest.minimum_chrome_version
+firefoxManifest.background = { scripts: ['background.js'], type: 'module' }
+firefoxManifest.browser_specific_settings = {
+  gecko: {
+    id: firefoxId,
+    strict_min_version: '128.0',
+    data_collection_permissions: { required: ['none'] }
+  }
+}
+fs.writeFileSync(firefoxManifestPath, `${JSON.stringify(firefoxManifest, null, 2)}\n`)
+fs.writeFileSync(
+  path.join(firefoxDir, 'README.md'),
+  '# FluxFetch for Firefox\n\nInstall the FluxFetch Windows app first. Open `about:debugging` → **This Firefox** → **Load Temporary Add-on…**, then select this folder’s `manifest.json`. Confirm **Connected** in the popup and refresh webpages. This release is unsigned: reload the temporary add-on after Firefox restarts. Persistent installation requires Mozilla signing; no signed XPI is included. Full guide: https://github.com/SheedaMusalli/FluxFetch/blob/main/docs/BROWSER-SETUP.md\n'
 )
 // Keep generated metadata in the same format enforced by `npm run format:check`.
 execFileSync(
@@ -49,12 +87,19 @@ execFileSync(
     require.resolve('prettier/bin/prettier.cjs'),
     '--write',
     manifestFile,
-    path.join(root, 'native-host', 'com.plexo.browser.json')
+    path.join(root, 'native-host', 'com.fluxfetch.browser.json'),
+    firefoxManifestPath,
+    firefoxManifestFile
   ],
   { stdio: 'inherit' }
 )
 const out = path.join(root, 'release')
 fs.mkdirSync(out, { recursive: true })
+const firefoxZipFile = path.join(out, 'FluxFetch-Firefox.zip')
+if (fs.existsSync(firefoxZipFile)) fs.unlinkSync(firefoxZipFile)
+const firefoxArchive = new AdmZip()
+firefoxArchive.addLocalFolder(firefoxDir)
+firefoxArchive.writeZip(firefoxZipFile)
 const zipFile = path.join(out, 'FluxFetch-Chrome.zip')
 if (fs.existsSync(zipFile)) fs.unlinkSync(zipFile)
 const archive = new AdmZip()

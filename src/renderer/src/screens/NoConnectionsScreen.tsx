@@ -38,7 +38,7 @@ export function NoConnectionsScreen({ onBack }: { onBack?: () => void }): React.
           <Button
             type="button"
             variant="secondary"
-            onClick={() => window.plexo.openNetworkSettings()}
+            onClick={() => window.fluxfetch.openNetworkSettings()}
           >
             Network Settings…
           </Button>

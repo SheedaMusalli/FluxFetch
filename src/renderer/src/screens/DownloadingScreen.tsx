@@ -144,13 +144,13 @@ export function DownloadingScreen({ download }: { download: DownloadState }): Re
   const handlePauseResume = (): void => {
     if (isPaused) {
       setResuming(true)
-      void window.plexo.resumeDownload(download.id)
+      void window.fluxfetch.resumeDownload(download.id)
     } else {
-      void window.plexo.pauseDownload(download.id)
+      void window.fluxfetch.pauseDownload(download.id)
     }
   }
   const handleConfirmCancel = (): void => {
-    void window.plexo.cancelDownload(download.id)
+    void window.fluxfetch.cancelDownload(download.id)
   }
 
   const effectiveSpeed = isPaused ? 0 : download.speedBytesPerSec
@@ -367,7 +367,7 @@ export function DownloadingScreen({ download }: { download: DownloadState }): Re
                 totalBytes={download.totalBytes}
                 blocks={download.blocks}
                 onSwitch={(enabled) =>
-                  void window.plexo.setDownloadNetwork(download.id, row.id, enabled)
+                  void window.fluxfetch.setDownloadNetwork(download.id, row.id, enabled)
                 }
               />
             ))}

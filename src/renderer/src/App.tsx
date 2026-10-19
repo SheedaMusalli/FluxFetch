@@ -7,6 +7,7 @@ import { DownloadConfirmationDialog } from './components/DownloadConfirmationDia
 import { DownloadQueueDialog } from './components/DownloadQueueDialog'
 import { SettingsDialog } from './components/SettingsDialog'
 import { SpeedTestDialog } from './components/SpeedTestDialog'
+import { TorrentDialog } from './components/TorrentDialog'
 import { NetworkBindingDialog } from './components/NetworkBindingDialog'
 import { UpdateDialog } from './components/UpdateDialog'
 import { TooltipProvider } from './components/ui/tooltip'
@@ -78,11 +79,23 @@ function App(): React.JSX.Element {
   const [queueOpen, setQueueOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [speedTestOpen, setSpeedTestOpen] = useState(false)
+  const [torrentOpen, setTorrentOpen] = useState(false)
+  useEffect(() => {
+    if (downloadWindowId) return
+    return window.fluxfetch.onTorrentAdded(() => {
+      setAdding(false)
+      setTorrentOpen(true)
+    })
+  }, [downloadWindowId])
 
   useEffect(() => {
     let mounted = true
-    void window.plexo.getQueuedDownloads().then((queue) => mounted && setQueueCount(queue.length))
-    const unsubscribe = window.plexo.onDownloadQueueChanged((queue) => setQueueCount(queue.length))
+    void window.fluxfetch
+      .getQueuedDownloads()
+      .then((queue) => mounted && setQueueCount(queue.length))
+    const unsubscribe = window.fluxfetch.onDownloadQueueChanged((queue) =>
+      setQueueCount(queue.length)
+    )
     return () => {
       mounted = false
       unsubscribe()
@@ -90,7 +103,7 @@ function App(): React.JSX.Element {
   }, [])
 
   useEffect(() => {
-    const unsubscribe = window.plexo.onPrepareRetry((url) => {
+    const unsubscribe = window.fluxfetch.onPrepareRetry((url) => {
       useAppStore.getState().setDraftUrl(url)
       setAdding(true)
     })
@@ -120,10 +133,10 @@ function App(): React.JSX.Element {
 
   const handleNewDownload = (): void => {
     if (downloadWindowId) {
-      void window.plexo.showMainWindow()
+      void window.fluxfetch.showMainWindow()
       return
     }
-    if (currentDownload) void window.plexo.removeDownload(currentDownload.id)
+    if (currentDownload) void window.fluxfetch.removeDownload(currentDownload.id)
     clearCurrentDownload()
   }
 
@@ -140,7 +153,7 @@ function App(): React.JSX.Element {
     if (currentDownload?.id === downloadWindowId) {
       ;({ screen, titleBarStatus } = renderDownload(currentDownload, {
         onNewDownload: handleNewDownload,
-        onDownloadAgain: () => void window.plexo.showMainWindow(currentDownload.url)
+        onDownloadAgain: () => void window.fluxfetch.showMainWindow(currentDownload.url)
       }))
     } else {
       screen = <div className="p-8 text-sm text-muted-foreground">Opening download…</div>
@@ -155,8 +168,9 @@ function App(): React.JSX.Element {
       <HistoryScreen
         onAdd={() => setAdding(true)}
         onQueue={() => setQueueOpen(true)}
+        onTorrents={() => setTorrentOpen(true)}
         onSpeedTest={() => setSpeedTestOpen(true)}
-        onRunOmniLink={() => window.plexo.runOmniLink()}
+        onRunOmniLink={() => window.fluxfetch.runOmniLink()}
         onRetry={(url) => {
           useAppStore.getState().setDraftUrl(url)
           setAdding(true)
@@ -188,6 +202,7 @@ function App(): React.JSX.Element {
               onOpenQueue={() => setQueueOpen(true)}
             />
             <SpeedTestDialog open={speedTestOpen} onOpenChange={setSpeedTestOpen} />
+            <TorrentDialog open={torrentOpen} onOpenChange={setTorrentOpen} />
           </>
         )}
       </div>

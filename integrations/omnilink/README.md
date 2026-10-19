@@ -34,7 +34,7 @@ d:\Projects\Steam Download Booster by AntiGravity\
 │   ├── adapters.rs                 # Win32 GetAdaptersAddresses hardware NIC discovery & filter
 │   ├── socket_binder.rs            # Winsock bind() + IP_UNICAST_IF big-endian interface binding
 │   ├── load_balancer.rs            # 500ms EWMA capacity-weighted scheduler & stall detector
-│   ├── overlay.rs                  # Transparent always-on-top draggable desktop HUD overlay
+│   ├── overlay.rs                  # Opaque FluxFetch-themed draggable Steam telemetry overlay
 │   ├── dispatcher.rs               # Async TCP & SOCKS5 loopback proxy with zero-copy stream splicing
 │   └── interceptor.rs              # WinDivert WFP redirector & PID ownership tracking
 └── tests/
@@ -106,15 +106,16 @@ test verify_per_adapter_isolation_and_public_ips ... ok
 
 ---
 
-## 🖥️ Transparent Desktop HUD Overlay
+## 🖥️ FluxFetch Desktop Overlay
 
 OmniLink includes a sleek, floating desktop HUD overlay that stays on top of every application, browser, and borderless game:
 
 - **Always On Top (`WS_EX_TOPMOST`):** Never gets hidden behind active game windows or browser tabs.
-- **Translucent Glass Aesthetic (`WS_EX_LAYERED`):** Rendered with double-buffered GDI in ~93% opacity dark slate (`RGB(15, 23, 42)`) with smooth rounded corners and anti-aliased Segoe UI typography.
+- **Opaque FluxFetch Theme:** Solid dark surfaces, purple accents, and smooth rounded corners match the FluxFetch interface.
 - **Zero Desktop Clutter (`WS_EX_TOOLWINDOW`):** Does not appear in your Windows Taskbar or Alt+Tab switcher.
 - **Fully Draggable:** Click and drag anywhere on the overlay to position it on any monitor.
-- **Real-Time Adapter Metrics:** Displays live hardware download ($\downarrow$ emerald mint) and upload ($\uparrow$ electric blue) speeds for each network card individually, plus a total combined throughput banner.
+- **Steam-Only Metrics:** Shows Steam process status and download speed measured on intercepted Steam connections. Speed stays at zero when Steam is not running or no Steam download data arrived in the latest sample window.
+- **Expandable Details:** Use the arrow control to expand or collapse per-adapter Steam download speeds and bonding status.
 - **Easy Hide / Show:**
   - **From System Tray:** Right-click the green OmniLink tray icon $\rightarrow$ uncheck/check **`Show Desktop HUD Overlay`**.
   - **From Overlay:** Right-click the overlay directly $\rightarrow$ click **`Hide Overlay`** or **`Reset Position to Top-Right`**.

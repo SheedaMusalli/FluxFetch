@@ -1,4 +1,5 @@
 import type { DownloadState } from '@shared/types'
+import { legacyHistoryKey } from '@shared/legacyIdentity'
 export type Entry = Pick<
   DownloadState,
   | 'id'
@@ -18,10 +19,17 @@ export type Entry = Pick<
   description?: string
   category?: string
 }
-export const key = 'plexo-download-history-v1'
-export const changedEvent = 'plexo-history-changed'
+export const key = 'fluxfetch-download-history-v1'
+export const changedEvent = 'fluxfetch-history-changed'
 export function read(): Entry[] {
   try {
+    if (localStorage.getItem(key) === null) {
+      const previous = localStorage.getItem(legacyHistoryKey)
+      if (previous !== null) {
+        localStorage.setItem(key, previous)
+        localStorage.removeItem(legacyHistoryKey)
+      }
+    }
     const value = JSON.parse(localStorage.getItem(key) || '[]')
     return Array.isArray(value) ? value : []
   } catch {
@@ -37,7 +45,7 @@ export function removeEntries(ids: string[]): Entry[] {
 }
 let lastSaved = { id: '', status: '', at: 0 }
 export function rememberDownload(download: DownloadState, peakSpeedBytesPerSec = 0): void {
-  if (download.destinationPath.includes('.plexo-youtube-')) return
+  if (download.destinationPath.includes('.fluxfetch-youtube-')) return
   if (
     lastSaved.id === download.id &&
     lastSaved.status === download.status &&

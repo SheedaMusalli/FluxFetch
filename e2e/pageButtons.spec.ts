@@ -14,9 +14,9 @@ test('no floating button, direct media controls, capture fallback, and unsupport
   const isolated = await createBrowserHost(root, dirs.userData)
   const key = `HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts\\${isolated.hostName}`
   const app = new FluxFetchApp(dirs, {
-    PLEXO_E2E_BROWSER_BRIDGE: '1',
-    PLEXO_E2E_BROWSER_PIPE: isolated.pipe,
-    PLEXO_E2E_INTERFACES: 'a=127.0.0.1'
+    FLUXFETCH_E2E_BROWSER_BRIDGE: '1',
+    FLUXFETCH_E2E_BROWSER_PIPE: isolated.pipe,
+    FLUXFETCH_E2E_INTERFACES: 'a=127.0.0.1'
   })
   const bytes = Buffer.alloc(256 * 1024, 54)
   let browserOnlyRefused = 0
@@ -87,9 +87,9 @@ test('no floating button, direct media controls, capture fallback, and unsupport
     await app.api.updateSettings({ destinationDir: dirs.dest })
     browser = await chromium.launchPersistentContext(join(dirs.userData, 'browser'), {
       channel: 'chromium',
-      executablePath: process.env.PLEXO_TEST_BROWSER,
+      executablePath: process.env.FLUXFETCH_TEST_BROWSER,
       headless: true,
-      env: { ...process.env, PLEXO_TEST_PIPE: isolated.pipe },
+      env: { ...process.env, FLUXFETCH_TEST_PIPE: isolated.pipe },
       args: [
         `--disable-extensions-except=${isolated.extension}`,
         `--load-extension=${isolated.extension}`
@@ -100,7 +100,7 @@ test('no floating button, direct media controls, capture fallback, and unsupport
     await browser.addCookies([{ name: 'session', value: 'page-test', url }])
     const page = await browser.newPage()
     await page.goto(url)
-    const dock = page.locator('#plexo-page-tools')
+    const dock = page.locator('#fluxfetch-page-tools')
     await expect(dock.locator('#toggle')).toHaveCount(0)
     await expect(dock.locator('#dock')).toHaveCount(0)
     const count = (await readdir(dirs.dest)).length

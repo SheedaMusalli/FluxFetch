@@ -147,6 +147,14 @@ impl SteamInterceptor {
         self.running.load(Ordering::Relaxed)
     }
 
+    /// Returns whether the PID monitor currently sees the Steam client process.
+    pub fn is_steam_process_running(&self) -> bool {
+        self.steam_pids
+            .read()
+            .map(|pids| !pids.is_empty())
+            .unwrap_or(false)
+    }
+
     /// Called by `src/dispatcher.rs` when a new connection arrives on `0.0.0.0:19080`
     /// to retrieve the true SteamPipe CDN IP and port that `steam.exe` requested.
     pub fn get_original_destination(&self, client_port: u16) -> Option<SocketAddr> {
@@ -167,12 +175,12 @@ impl SteamInterceptor {
         // 1. Spawn background thread to refresh `steam.exe` PIDs and prune stale NAT entries
         let pids_clone = Arc::clone(&self.steam_pids);
         let nat_clone = Arc::clone(&self.nat_table);
-        let running_clone = Arc::clone(&self.running);
-
         std::thread::Builder::new()
             .name("omnilink-pid-monitor".into())
             .spawn(move || {
-                while running_clone.load(Ordering::Relaxed) {
+                // Keep Steam process status available even if WinDivert cannot start.
+                // The app exits as a whole when the tray command quits.
+                loop {
                     let latest_pids = find_process_pids(&["steam.exe"]);
                     if let Ok(mut guard) = pids_clone.write() {
                         *guard = latest_pids;

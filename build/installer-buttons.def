@@ -1,0 +1,4 @@
+LIBRARY FluxFetchButtons
+EXPORTS
+  StyleButton=_StyleButton@8
+  StyleChoice=_StyleChoice@8

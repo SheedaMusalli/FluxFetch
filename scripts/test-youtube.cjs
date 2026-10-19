@@ -119,9 +119,9 @@ test('completed path, progress, duplicate inspection and shutdown cancellation',
   await f.engine.dispatch({ action: 'youtubeDownload', url, id, choice: 'h720' })
   await next()
   const child = f.children[1]
-  child.stdout.emit('data', Buffer.from('PLEXO_PROGRESS:50% 1MiB/s ETA 00:01\n'))
+  child.stdout.emit('data', Buffer.from('FLUXFETCH_PROGRESS:50% 1MiB/s ETA 00:01\n'))
   assert.match((await f.engine.dispatch({ action: 'youtubeStatus', url, id })).job.message, /50%/)
-  child.stdout.emit('data', Buffer.from('PLEXO_FILE:C:\\Downloads\\video.webm\n'))
+  child.stdout.emit('data', Buffer.from('FLUXFETCH_FILE:C:\\Downloads\\video.webm\n'))
   child.exitCode = 0
   child.emit('close', 0)
   await next()

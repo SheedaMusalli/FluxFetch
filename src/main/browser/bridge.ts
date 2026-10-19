@@ -12,7 +12,7 @@ import { browserHeaders, httpUrl, type BrowserContext } from './headers'
 import type { DownloadConfirmationResponse, ProbeResult } from '../../shared/types'
 import { testKnobs } from '../testKnobs'
 import { YoutubeDownloads } from './youtube'
-import { addTorrentUrl } from '../torrent/qbittorrent'
+import type { TorrentManager } from '../torrent/libtorrent'
 import { siteAuthContext } from '../siteAuth'
 
 interface Entry {
@@ -54,7 +54,8 @@ async function checkFile(
 /** A local named pipe, never an HTTP server accessible to websites. */
 export async function startBrowserBridge(
   manager: DownloadManager,
-  show: () => void
+  show: () => void,
+  torrents: TorrentManager
 ): Promise<Server> {
   const confirmDownload = async (
     fileName: string,
@@ -68,7 +69,7 @@ export async function startBrowserBridge(
   const suffix =
     testKnobs.browserPipe ||
     createHash('sha256').update(app.getPath('home').toLowerCase()).digest('hex').slice(0, 16)
-  const pipe = `\\\\.\\pipe\\plexo-browser-${suffix}`
+  const pipe = `\\\\.\\pipe\\fluxfetch-browser-${suffix}`
   const queuePath = join(app.getPath('userData'), 'browser-queue.bin')
   let entries: Entry[] = []
   try {
@@ -159,7 +160,6 @@ export async function startBrowserBridge(
         ['http:', 'https:'].includes(torrentUrl.protocol) && /\.torrent$/i.test(torrentUrl.pathname)
       if ((!isMagnet && !isTorrentUrl) || torrentUrl.username || torrentUrl.password)
         throw new Error('Only magnet links and direct .torrent links are supported.')
-      const settings = await loadSettings()
       const name = isMagnet
         ? torrentUrl.searchParams.get('dn') || 'Magnet torrent'
         : decodeURIComponent(torrentUrl.pathname.split('/').pop() || 'Torrent download')
@@ -168,10 +168,11 @@ export async function startBrowserBridge(
         `Torrent · ${isMagnet ? 'magnet link' : torrentUrl.origin}`
       )
       if (!confirmation.accepted) return { ok: true, cancelled: true }
-      await addTorrentUrl(
+      const torrentSettings = await loadSettings()
+      await torrents.add(
         torrentUrl.href,
-        confirmation.destinationDir || settings.destinationDir || app.getPath('downloads'),
-        settings.maxDownloadSpeedBytesPerSec ?? 0
+        confirmation.destinationDir || torrentSettings.destinationDir || app.getPath('downloads'),
+        torrentSettings.maxDownloadSpeedBytesPerSec ?? 0
       )
       show()
       return { ok: true, added: true }

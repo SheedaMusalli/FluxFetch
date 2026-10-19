@@ -1606,7 +1606,7 @@
       </section>
 
       <footer>
-        <div class="ver" id="version-label">PLEXO</div>
+        <div class="ver" id="version-label">FLUXFETCH</div>
         <div class="spacer"></div>
         <a href="https://github.com/SheedaMusalli/FluxFetch">Source</a>
         <a href="https://github.com/SheedaMusalli/FluxFetch/issues/new">Report an issue</a>
@@ -1853,7 +1853,7 @@
           $('release-line').textContent = failed
             ? 'Couldn’t check for the latest release.'
             : 'No release published yet.'
-          $('version-label').textContent = 'PLEXO'
+          $('version-label').textContent = 'FLUXFETCH'
           $('primary-title').textContent = 'View releases on GitHub'
           $('primary-meta').textContent = repoUrl
           $('primary-btn').href = repoUrl + '/releases'
@@ -1884,7 +1884,7 @@
                 day: 'numeric'
               })
             : ''
-          versionEl.textContent = 'PLEXO · ' + version
+          versionEl.textContent = 'FLUXFETCH · ' + version
           sourceEl.textContent = REPO.toUpperCase() + ' · ' + version.toUpperCase()
           releaseLine.textContent = version + (date ? ' · ' + date : '')
 
@@ -2070,9 +2070,9 @@
       // vote twice by reloading.
       ;(function () {
         var API = 'https://abacus.jasoncameron.dev'
-        var NAMESPACE = 'sheedamusalli-plexo-for-windows'
+        var NAMESPACE = 'sheedamusalli-fluxfetch'
         var KEYS = { yes: 'ads-poll-yes', no: 'ads-poll-no' }
-        var STORE = 'plexo-ads-poll'
+        var STORE = 'fluxfetch-ads-poll'
         var REFRESH_MS = 15000
 
         var poll = document.getElementById('poll')
@@ -2218,9 +2218,9 @@
         // again on a later visit: never twice in one browser session, at least a day apart, and at
         // most MAX_ASKS times. Voting ends it for good.
         var dialog = document.getElementById('poll-dialog')
-        var ASKS = 'plexo-ads-poll-asks'
-        var SESSION = 'plexo-ads-poll-asked'
-        var LEGACY = 'plexo-ads-poll-prompted'
+        var ASKS = 'fluxfetch-ads-poll-asks'
+        var SESSION = 'fluxfetch-ads-poll-asked'
+        var LEGACY = 'fluxfetch-ads-poll-prompted'
         var PROMPT_DELAY_MS = 2000
         var MIN_GAP_MS = 24 * 60 * 60 * 1000
         var MAX_ASKS = 3

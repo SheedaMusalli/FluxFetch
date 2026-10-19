@@ -13,9 +13,9 @@ test('YouTube compact control, trusted clicks, real quality discovery and merged
   const isolated = await createBrowserHost(root, dirs.userData)
   const key = `HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts\\${isolated.hostName}`
   const app = new FluxFetchApp(dirs, {
-    PLEXO_E2E_BROWSER_BRIDGE: '1',
-    PLEXO_E2E_BROWSER_PIPE: isolated.pipe,
-    PLEXO_E2E_INTERFACES: 'a=127.0.0.1'
+    FLUXFETCH_E2E_BROWSER_BRIDGE: '1',
+    FLUXFETCH_E2E_BROWSER_PIPE: isolated.pipe,
+    FLUXFETCH_E2E_INTERFACES: 'a=127.0.0.1'
   })
   let browser: Awaited<ReturnType<typeof chromium.launchPersistentContext>> | undefined
   try {
@@ -27,9 +27,9 @@ test('YouTube compact control, trusted clicks, real quality discovery and merged
     await app.api.updateSettings({ destinationDir: dirs.dest })
     browser = await chromium.launchPersistentContext(join(dirs.userData, 'browser'), {
       channel: 'chromium',
-      executablePath: process.env.PLEXO_TEST_BROWSER,
+      executablePath: process.env.FLUXFETCH_TEST_BROWSER,
       headless: true,
-      env: { ...process.env, PLEXO_TEST_PIPE: isolated.pipe },
+      env: { ...process.env, FLUXFETCH_TEST_PIPE: isolated.pipe },
       args: [
         `--disable-extensions-except=${isolated.extension}`,
         `--load-extension=${isolated.extension}`
@@ -45,9 +45,9 @@ test('YouTube compact control, trusted clicks, real quality discovery and merged
     )
     const page = await browser.newPage()
     await page.goto('https://www.youtube.com/watch?v=jNQXAC9IVRw')
-    const ui = page.locator('#plexo-youtube-tools')
+    const ui = page.locator('#fluxfetch-youtube-tools')
     await expect(ui.locator('#toggle')).toBeVisible()
-    await expect(page.locator('#plexo-page-tools')).toHaveCount(0)
+    await expect(page.locator('#fluxfetch-page-tools')).toHaveCount(0)
     await ui.locator('#toggle').evaluate((button: HTMLElement) => button.click())
     await expect(ui.locator('#panel')).toBeHidden()
     await ui.locator('#toggle').click()

@@ -139,7 +139,9 @@ export function ErrorScreen({
                 disabled={resuming}
                 onClick={() => {
                   setResuming(true)
-                  void window.plexo.resumeDownload(download.id).finally(() => setResuming(false))
+                  void window.fluxfetch
+                    .resumeDownload(download.id)
+                    .finally(() => setResuming(false))
                 }}
               >
                 {resuming ? 'Resuming…' : 'Resume'}

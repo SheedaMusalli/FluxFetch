@@ -18,7 +18,7 @@ export function NetworkBindingDialog(): React.JSX.Element {
   const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
-    window.plexo.deviceBindingSupported().then(setSupported, () => {})
+    window.fluxfetch.deviceBindingSupported().then(setSupported, () => {})
   }, [])
 
   return (

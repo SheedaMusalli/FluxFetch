@@ -4,4 +4,5 @@ pub mod interceptor;
 pub mod load_balancer;
 pub mod overlay;
 pub mod socket_binder;
+pub mod steam_download_state;
 pub mod tray;

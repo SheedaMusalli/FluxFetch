@@ -15,7 +15,7 @@ export async function createBrowserHost(
   hostName: string
 }> {
   const pipe = `test-${randomUUID()}`
-  const hostName = `com.plexo.test_${pipe.replace(/-/g, '_')}`
+  const hostName = `com.fluxfetch.test_${pipe.replace(/-/g, '_')}`
   const hostDir = join(destination, 'test-native-host')
   await mkdir(hostDir, { recursive: true })
   const executable = join(hostDir, 'FluxFetch.BrowserHost.exe')
@@ -25,7 +25,7 @@ export async function createBrowserHost(
       '/nologo',
       '/target:exe',
       '/platform:anycpu',
-      '/define:PLEXO_TEST_HOST',
+      '/define:FLUXFETCH_TEST_HOST',
       '/r:System.Web.Extensions.dll',
       `/out:${executable}`,
       join(root, 'native-host/Program.cs')
@@ -50,7 +50,7 @@ export async function createBrowserHost(
   const background = join(extension, 'background.js')
   await writeFile(
     background,
-    (await readFile(background, 'utf8')).replace("'com.plexo.browser'", `'${hostName}'`)
+    (await readFile(background, 'utf8')).replace("'com.fluxfetch.browser'", `'${hostName}'`)
   )
   return { executable, manifest, extension, pipe, hostName }
 }

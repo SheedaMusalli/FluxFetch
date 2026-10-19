@@ -30,7 +30,7 @@ export const BLOCK = 64 * 1024
  * server tells the two networks apart. Found (and checked to work) by global-setup.ts; null
  * where there's no usable one, and the multi-network tests skip.
  */
-export const LAN_ADDRESS = process.env.PLEXO_E2E_LAN || null
+export const LAN_ADDRESS = process.env.FLUXFETCH_E2E_LAN || null
 
 export const NETWORKS = LAN_ADDRESS
   ? { a: '127.0.0.1', b: LAN_ADDRESS }
@@ -64,7 +64,7 @@ interface Tracked {
 }
 
 /**
- * Drives one FluxFetch instance through the same `window.plexo` API the renderer uses — nothing
+ * Drives one FluxFetch instance through the same `window.fluxfetch` API the renderer uses — nothing
  * below this reaches into the main process's internals, so refactoring them can't break a test
  * that still describes correct behavior.
  */
@@ -93,19 +93,19 @@ export class FluxFetchApp {
           args: [PROJECT_ROOT, ...(process.platform === 'linux' ? ['--no-sandbox'] : [])],
           env: {
             ...(process.env as Record<string, string>),
-            PLEXO_USER_DATA: this.dirs.userData,
-            PLEXO_E2E_HIDE_WINDOW: '1',
-            PLEXO_E2E_BLOCK_BYTES: String(BLOCK),
-            PLEXO_E2E_RETRY_BASE_MS: '20',
-            PLEXO_E2E_STALL_MS: '1500',
+            FLUXFETCH_USER_DATA: this.dirs.userData,
+            FLUXFETCH_E2E_HIDE_WINDOW: '1',
+            FLUXFETCH_E2E_BLOCK_BYTES: String(BLOCK),
+            FLUXFETCH_E2E_RETRY_BASE_MS: '20',
+            FLUXFETCH_E2E_STALL_MS: '1500',
             // A busy server gives up after its retries alone, as any other wrong answer does,
             // unless a test waits it out on purpose.
-            PLEXO_E2E_SERVER_BUSY_MS: '1',
+            FLUXFETCH_E2E_SERVER_BUSY_MS: '1',
             // Off unless a test asks for it: a hedge is an extra request, and most tests count them.
-            PLEXO_E2E_HEDGE_MS: '600000',
+            FLUXFETCH_E2E_HEDGE_MS: '600000',
             // Fixed for the same reason, and for downloads started through the UI.
-            PLEXO_E2E_STREAMS: '2',
-            PLEXO_E2E_INTERFACES: interfacesEnv(NETWORKS),
+            FLUXFETCH_E2E_STREAMS: '2',
+            FLUXFETCH_E2E_INTERFACES: interfacesEnv(NETWORKS),
             ...this.extraEnv
           }
         })
@@ -130,14 +130,14 @@ export class FluxFetchApp {
     this.sessions.push(session)
     this.updates.push(updates)
     // Kept whole, the way the window puts them together.
-    await this.page.exposeFunction('__plexoRecord', (update: DownloadUpdate) => {
+    await this.page.exposeFunction('__fluxfetchRecord', (update: DownloadUpdate) => {
       updates.push(update)
       const state = applyDownloadUpdate(session.at(-1) ?? null, update)
       if (state && state !== session.at(-1)) session.push(state)
     })
     await this.page.evaluate(() => {
-      const w = window as unknown as { __plexoRecord: (s: unknown) => void }
-      window.plexo.onDownloadUpdated((update) => w.__plexoRecord(update))
+      const w = window as unknown as { __fluxfetchRecord: (s: unknown) => void }
+      window.fluxfetch.onDownloadUpdated((update) => w.__fluxfetchRecord(update))
     })
     return this
   }
@@ -168,7 +168,7 @@ export class FluxFetchApp {
       (...args: unknown[]) =>
         this.page.evaluate(
           ([method, params]) =>
-            (window.plexo as unknown as Record<string, (...a: unknown[]) => unknown>)[method](
+            (window.fluxfetch as unknown as Record<string, (...a: unknown[]) => unknown>)[method](
               ...params
             ),
           [name, args] as const
@@ -184,8 +184,8 @@ export class FluxFetchApp {
   private async pinStreams(connections: number | 'auto' = 2): Promise<void> {
     await this.evaluateMain(
       (_electron, value) => {
-        if (value === null) delete process.env.PLEXO_E2E_STREAMS
-        else process.env.PLEXO_E2E_STREAMS = value
+        if (value === null) delete process.env.FLUXFETCH_E2E_STREAMS
+        else process.env.FLUXFETCH_E2E_STREAMS = value
       },
       connections === 'auto' ? null : String(connections)
     )
@@ -398,7 +398,7 @@ export async function checkFinalState(app: FluxFetchApp): Promise<void> {
     expectedAdded
   )
 
-  const stagingPath = `${state.destinationPath}.plexo`
+  const stagingPath = `${state.destinationPath}.fluxfetch`
   await expect
     .poll(() => existsSync(stagingPath), { message: 'staging file cleaned up', timeout: 5000 })
     .toBe(false)
@@ -421,19 +421,19 @@ export async function makeDirs(): Promise<{
   dirs: { userData: string; dest: string }
   dispose: () => Promise<void>
 }> {
-  const root = await realpath(await mkdtemp(join(tmpdir(), 'plexo-e2e-')))
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'fluxfetch-e2e-')))
   const dirs = { userData: join(root, 'userData'), dest: join(root, 'dest') }
   await Promise.all([mkdir(dirs.userData), mkdir(dirs.dest)])
   return { dirs, dispose: () => rm(root, { recursive: true, force: true, maxRetries: 5 }) }
 }
 
 interface Fixtures {
-  /** Extra environment for the app, e.g. `test.use({ appEnv: { PLEXO_E2E_RETRY_BASE_MS: '2000' } })`. */
+  /** Extra environment for the app, e.g. `test.use({ appEnv: { FLUXFETCH_E2E_RETRY_BASE_MS: '2000' } })`. */
   appEnv: Record<string, string>
   dirs: { userData: string; dest: string }
   /** Starts a test server; every one started is stopped after the test. */
   serve: (options: OriginOptions) => Promise<Origin>
-  plexo: FluxFetchApp
+  fluxfetch: FluxFetchApp
   checks: void
 }
 
@@ -462,7 +462,7 @@ export const test = base.extend<Fixtures>({
     await Promise.all(origins.map((origin) => origin.stop()))
   },
 
-  plexo: async ({ dirs, appEnv }, use, testInfo) => {
+  fluxfetch: async ({ dirs, appEnv }, use, testInfo) => {
     const app = new FluxFetchApp(dirs, { ...appEnv })
     await app.launch()
     await use(app)
@@ -476,16 +476,16 @@ export const test = base.extend<Fixtures>({
   },
 
   checks: [
-    async ({ plexo }, use, testInfo) => {
+    async ({ fluxfetch }, use, testInfo) => {
       await use()
       // A test already failing (or expected to fail) has said what it needed to.
       if (testInfo.status !== 'passed' || testInfo.expectedStatus !== 'passed') return
-      checkEvents(plexo.sessions)
+      checkEvents(fluxfetch.sessions)
       // Listeners piling up on one stream or emitter: harmless today, a leak tomorrow.
-      expect(plexo.output.join(''), 'the app warned of a listener leak').not.toContain(
+      expect(fluxfetch.output.join(''), 'the app warned of a listener leak').not.toContain(
         'MaxListenersExceededWarning'
       )
-      if (plexo.alive) await checkFinalState(plexo)
+      if (fluxfetch.alive) await checkFinalState(fluxfetch)
     },
     { auto: true }
   ]

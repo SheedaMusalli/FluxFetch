@@ -1,7 +1,7 @@
-import type { PlexoApi } from './index'
+import type { FluxFetchApi } from './index'
 
 declare global {
   interface Window {
-    plexo: PlexoApi
+    fluxfetch: FluxFetchApi
   }
 }

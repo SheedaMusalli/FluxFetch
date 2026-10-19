@@ -57,8 +57,35 @@ const archive = new AdmZip(archiveBytes)
 const manifest = JSON.parse(archive.readAsText('manifest.json'))
 assert.equal(manifest.key, publicKey.toString('base64'))
 assert.equal(manifest.manifest_version, 3)
-const native = JSON.parse(fs.readFileSync(path.join(root, 'native-host/com.plexo.browser.json')))
+const native = JSON.parse(
+  fs.readFileSync(path.join(root, 'native-host/com.fluxfetch.browser.json'))
+)
 assert.deepEqual(native.allowed_origins, [`chrome-extension://${id}/`])
 assert.equal(fs.readFileSync(path.join(root, 'native-host/extension-id.txt'), 'utf8'), id)
 assert.deepEqual(archiveBytes, fs.readFileSync(path.join(root, 'release/FluxFetch-Chrome.zip')))
 console.log('PASS: CRX3 RSA signature, embedded ZIP, manifest key and native-host ID:', id)
+
+const firefoxZip = new AdmZip(path.join(root, 'release/FluxFetch-Firefox.zip'))
+const firefoxManifest = JSON.parse(firefoxZip.readAsText('manifest.json'))
+assert.equal(firefoxManifest.manifest_version, 3)
+assert.deepEqual(firefoxManifest.background, { scripts: ['background.js'], type: 'module' })
+assert.equal(firefoxManifest.browser_specific_settings.gecko.id, 'fluxfetch@fluxfetch.app')
+assert.deepEqual(firefoxManifest.browser_specific_settings.gecko.data_collection_permissions, {
+  required: ['none']
+})
+assert.ok(!firefoxManifest.key)
+assert.ok(!firefoxManifest.minimum_chrome_version)
+const firefoxNative = JSON.parse(
+  fs.readFileSync(path.join(root, 'native-host/com.fluxfetch.browser.firefox.json'))
+)
+assert.deepEqual(firefoxNative.allowed_extensions, ['fluxfetch@fluxfetch.app'])
+for (const name of ['background.js', 'page.js', 'page-discovery.js', 'popup.js', 'youtube.js']) {
+  assert.equal(
+    firefoxZip.readAsText(name),
+    fs.readFileSync(path.join(root, 'extension', name), 'utf8'),
+    `Firefox clone is missing or stale: ${name}`
+  )
+}
+console.log(
+  'PASS: Firefox MV3 package, fixed add-on ID, data declaration, native messaging, and cloned source'
+)

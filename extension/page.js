@@ -4,7 +4,7 @@
   if (['www.youtube.com', 'youtube.com', 'm.youtube.com'].includes(location.hostname)) return
   const streamPattern = /\.(m3u8|mpd|m4s|ts)(?:[?#]|$)/i
   const host = document.createElement('div')
-  host.id = 'plexo-page-tools'
+  host.id = 'fluxfetch-page-tools'
   host.style.cssText =
     'all:initial!important;position:fixed!important;inset:0!important;z-index:2147483647!important;pointer-events:none!important;display:block!important;'
   const shadow = host.attachShadow({ mode: 'open' })

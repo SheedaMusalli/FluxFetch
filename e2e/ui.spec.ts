@@ -11,10 +11,10 @@ const SIZE = 24 * BLOCK
 
 /** The destination picker and "Reveal in Finder" go through native OS UI — replace both. */
 async function stubNativeUi(
-  plexo: import('./fixtures').FluxFetchApp,
+  fluxfetch: import('./fixtures').FluxFetchApp,
   destination: string
 ): Promise<void> {
-  await plexo.evaluateMain(({ dialog, shell }, dest) => {
+  await fluxfetch.evaluateMain(({ dialog, shell }, dest) => {
     dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [dest] })) as never
     const revealed: string[] = []
     ;(globalThis as Record<string, unknown>).__revealed = revealed
@@ -34,8 +34,8 @@ async function openAddUrl(page: Page): Promise<void> {
 }
 
 test.describe('UI journeys @smoke', () => {
-  test('add-download page has a clear route back to download history', async ({ plexo }) => {
-    const page = plexo.page
+  test('add-download page has a clear route back to download history', async ({ fluxfetch }) => {
+    const page = fluxfetch.page
     await page.getByRole('button', { name: '+ Add URL', exact: true }).click()
     const backButton = page.getByRole('button', { name: 'Downloads library' })
     await expect(backButton).toBeVisible()
@@ -43,8 +43,10 @@ test.describe('UI journeys @smoke', () => {
     await expect(page.getByRole('button', { name: '+ Add URL', exact: true })).toBeVisible()
   })
 
-  test('starts a real Cloudflare speed test only after the user chooses to', async ({ plexo }) => {
-    const page = plexo.page
+  test('starts a real Cloudflare speed test only after the user chooses to', async ({
+    fluxfetch
+  }) => {
+    const page = fluxfetch.page
     let requests = 0
     await page.route('https://speed.cloudflare.com/**', async (route) => {
       requests += 1
@@ -75,12 +77,12 @@ test.describe('UI journeys @smoke', () => {
     await expect(dialog).toBeHidden()
   })
 
-  test('speed test dialog stays inside a compact window', async ({ plexo }) => {
-    await plexo.evaluateMain((_electron) => {
+  test('speed test dialog stays inside a compact window', async ({ fluxfetch }) => {
+    await fluxfetch.evaluateMain((_electron) => {
       _electron.BrowserWindow.getAllWindows()[0].setSize(720, 650)
     }, null)
 
-    const page = plexo.page
+    const page = fluxfetch.page
     await page.getByRole('button', { name: 'Speed test' }).click()
 
     const dialog = page.getByRole('dialog')
@@ -112,13 +114,13 @@ test.describe('UI journeys @smoke', () => {
     }
   })
 
-  test('double-clicking a completed history item opens its file', async ({ plexo, dirs }) => {
-    await stubNativeUi(plexo, dirs.dest)
+  test('double-clicking a completed history item opens its file', async ({ fluxfetch, dirs }) => {
+    await stubNativeUi(fluxfetch, dirs.dest)
     const filePath = join(dirs.dest, 'finished.zip')
     await writeFile(filePath, 'finished')
-    await plexo.page.evaluate((path) => {
+    await fluxfetch.page.evaluate((path) => {
       localStorage.setItem(
-        'plexo-download-history-v1',
+        'fluxfetch-download-history-v1',
         JSON.stringify([
           {
             id: 'finished-download',
@@ -136,23 +138,25 @@ test.describe('UI journeys @smoke', () => {
         ])
       )
     }, filePath)
-    await plexo.page.reload()
-    await plexo.page.getByRole('row', { name: /finished\.zip/ }).dblclick()
+    await fluxfetch.page.reload()
+    await fluxfetch.page.getByRole('row', { name: /finished\.zip/ }).dblclick()
     await expect
-      .poll(() => plexo.evaluateMain(() => (globalThis as Record<string, unknown>).__opened, null))
+      .poll(() =>
+        fluxfetch.evaluateMain(() => (globalThis as Record<string, unknown>).__opened, null)
+      )
       .toEqual([filePath])
     await expect(
-      plexo.page.getByText(/Last download · Peak 3\.0 MB\/s · Avg 2\.5 MB\/s/)
+      fluxfetch.page.getByText(/Last download · Peak 3\.0 MB\/s · Avg 2\.5 MB\/s/)
     ).toBeVisible()
 
-    const row = plexo.page.getByRole('row', { name: /finished\.zip/ })
+    const row = fluxfetch.page.getByRole('row', { name: /finished\.zip/ })
     await row.click({ button: 'right' })
-    await plexo.page.getByRole('menuitem', { name: 'Properties' }).click()
-    const properties = plexo.page.getByRole('dialog', { name: 'Download properties' })
+    await fluxfetch.page.getByRole('menuitem', { name: 'Properties' }).click()
+    const properties = fluxfetch.page.getByRole('dialog', { name: 'Download properties' })
     await expect(properties.getByRole('button', { name: 'Open file', exact: true })).toBeEnabled()
     await expect(properties.getByRole('button', { name: 'Open file location' })).toBeEnabled()
     await properties.getByRole('button', { name: 'Refresh address' }).click()
-    const refresh = plexo.page.getByRole('dialog', { name: 'Refresh download address' })
+    const refresh = fluxfetch.page.getByRole('dialog', { name: 'Refresh download address' })
     await expect(refresh.getByLabel('Download address')).toHaveValue(
       'https://example.com/finished.zip'
     )
@@ -160,29 +164,29 @@ test.describe('UI journeys @smoke', () => {
     await expect(properties).toBeHidden()
 
     await row.click({ button: 'right' })
-    await plexo.page.getByRole('menuitem', { name: 'Refresh Download Address' }).click()
-    await plexo.page
+    await fluxfetch.page.getByRole('menuitem', { name: 'Refresh Download Address' }).click()
+    await fluxfetch.page
       .getByRole('dialog', { name: 'Refresh download address' })
       .getByRole('button', { name: 'Continue to download' })
       .click()
-    await expect(plexo.page.getByRole('textbox', { name: 'LINK' })).toHaveValue(
+    await expect(fluxfetch.page.getByRole('textbox', { name: 'LINK' })).toHaveValue(
       'https://example.com/finished.zip'
     )
   })
 
   test('batch removal clears selected history entries but keeps files and active downloads', async ({
-    plexo,
+    fluxfetch,
     dirs
   }) => {
     const firstPath = join(dirs.dest, 'keep-first.zip')
     const secondPath = join(dirs.dest, 'keep-second.zip')
     await writeFile(firstPath, 'first')
     await writeFile(secondPath, 'second')
-    await plexo.page.evaluate(
+    await fluxfetch.page.evaluate(
       ([first, second]) => {
         const now = Date.now()
         localStorage.setItem(
-          'plexo-download-history-v1',
+          'fluxfetch-download-history-v1',
           JSON.stringify([
             ...[first, second].map((destinationPath, index) => ({
               id: `completed-${index}`,
@@ -214,33 +218,36 @@ test.describe('UI journeys @smoke', () => {
       },
       [firstPath, secondPath]
     )
-    await plexo.page.reload()
+    await fluxfetch.page.reload()
 
-    await plexo.page.getByLabel('Select all removable downloads').check()
-    await expect(plexo.page.getByRole('status')).toHaveText('2 selected · Files stay on disk')
-    await expect(plexo.page.getByLabel('Select active.zip')).toBeDisabled()
-    await plexo.page.getByRole('button', { name: 'Remove from history' }).click()
+    await fluxfetch.page.getByLabel('Select all removable downloads').check()
+    await expect(fluxfetch.page.getByRole('status')).toHaveText('2 selected · Files stay on disk')
+    await expect(fluxfetch.page.getByLabel('Select active.zip')).toBeDisabled()
+    await fluxfetch.page.getByRole('button', { name: 'Remove from history' }).click()
 
-    await expect(plexo.page.getByRole('row', { name: /keep-first\.zip/ })).toHaveCount(0)
-    await expect(plexo.page.getByRole('row', { name: /keep-second\.zip/ })).toHaveCount(0)
-    await expect(plexo.page.getByRole('row', { name: /active\.zip/ })).toBeVisible()
-    await expect(plexo.page.getByRole('status')).toHaveCount(0)
-    await expect(plexo.page.getByRole('row')).toHaveCount(2) // Header plus the active download.
+    await expect(fluxfetch.page.getByRole('row', { name: /keep-first\.zip/ })).toHaveCount(0)
+    await expect(fluxfetch.page.getByRole('row', { name: /keep-second\.zip/ })).toHaveCount(0)
+    await expect(fluxfetch.page.getByRole('row', { name: /active\.zip/ })).toBeVisible()
+    await expect(fluxfetch.page.getByRole('status')).toHaveCount(0)
+    await expect(fluxfetch.page.getByRole('row')).toHaveCount(2) // Header plus the active download.
     expect((await stat(firstPath)).size).toBe(5)
     expect((await stat(secondPath)).size).toBe(6)
   })
 
-  test('single history removal asks whether to delete the file too', async ({ plexo, dirs }) => {
+  test('single history removal asks whether to delete the file too', async ({
+    fluxfetch,
+    dirs
+  }) => {
     const filePath = join(dirs.dest, 'remove-me.zip')
     await writeFile(filePath, 'remove me')
-    await plexo.evaluateMain(({ shell }) => {
+    await fluxfetch.evaluateMain(({ shell }) => {
       const trashed: string[] = []
       ;(globalThis as Record<string, unknown>).__trashed = trashed
       shell.trashItem = async (path: string) => void trashed.push(path)
     }, null)
-    await plexo.page.evaluate((path) => {
+    await fluxfetch.page.evaluate((path) => {
       localStorage.setItem(
-        'plexo-download-history-v1',
+        'fluxfetch-download-history-v1',
         JSON.stringify([
           {
             id: 'remove-me',
@@ -258,29 +265,31 @@ test.describe('UI journeys @smoke', () => {
         ])
       )
     }, filePath)
-    await plexo.page.reload()
+    await fluxfetch.page.reload()
 
-    await plexo.page.getByRole('row', { name: /remove-me\.zip/ }).click({ button: 'right' })
-    await plexo.page.getByRole('menuitem', { name: 'Remove from history' }).click()
-    const prompt = plexo.page.getByRole('dialog', { name: 'Remove download' })
+    await fluxfetch.page.getByRole('row', { name: /remove-me\.zip/ }).click({ button: 'right' })
+    await fluxfetch.page.getByRole('menuitem', { name: 'Remove from history' }).click()
+    const prompt = fluxfetch.page.getByRole('dialog', { name: 'Remove download' })
     await expect(prompt).toBeVisible()
     await expect(prompt.getByRole('button', { name: 'Remove from history' })).toBeEnabled()
     await prompt.getByRole('button', { name: 'Delete file & remove' }).click()
     await expect(prompt).toBeHidden()
-    await expect(plexo.page.getByRole('row', { name: /remove-me\.zip/ })).toHaveCount(0)
+    await expect(fluxfetch.page.getByRole('row', { name: /remove-me\.zip/ })).toHaveCount(0)
     await expect
-      .poll(() => plexo.evaluateMain(() => (globalThis as Record<string, unknown>).__trashed, null))
+      .poll(() =>
+        fluxfetch.evaluateMain(() => (globalThis as Record<string, unknown>).__trashed, null)
+      )
       .toEqual([filePath])
   })
 
   test('missing archive in history shows a helpful message instead of an IPC error', async ({
-    plexo,
+    fluxfetch,
     dirs
   }) => {
     const missingFile = join(dirs.dest, 'missing-archive.zip')
-    await plexo.page.evaluate((path) => {
+    await fluxfetch.page.evaluate((path) => {
       localStorage.setItem(
-        'plexo-download-history-v1',
+        'fluxfetch-download-history-v1',
         JSON.stringify([
           {
             id: 'missing-archive',
@@ -298,18 +307,18 @@ test.describe('UI journeys @smoke', () => {
         ])
       )
     }, missingFile)
-    await plexo.page.reload()
-    const row = plexo.page.getByRole('row', { name: /missing-archive\.zip/ })
+    await fluxfetch.page.reload()
+    const row = fluxfetch.page.getByRole('row', { name: /missing-archive\.zip/ })
     await row.click({ button: 'right' })
-    await plexo.page.getByRole('menuitem', { name: 'Preview archive' }).click()
-    const error = plexo.page.getByRole('alert')
+    await fluxfetch.page.getByRole('menuitem', { name: 'Preview archive' }).click()
+    const error = fluxfetch.page.getByRole('alert')
     await expect(error).toContainText('no longer at its saved location')
     await expect(error).not.toContainText('Error invoking remote method')
   })
 
-  test('lets users select combined networks in the speed test', async ({ plexo }) => {
-    await plexo.page.getByRole('button', { name: 'Speed test' }).click()
-    const dialog = plexo.page.getByRole('dialog')
+  test('lets users select combined networks in the speed test', async ({ fluxfetch }) => {
+    await fluxfetch.page.getByRole('button', { name: 'Speed test' }).click()
+    const dialog = fluxfetch.page.getByRole('dialog')
     await expect(
       dialog.getByRole('heading', { name: 'FluxFetch internet speed test' })
     ).toBeVisible()
@@ -332,14 +341,14 @@ test.describe('UI journeys @smoke', () => {
   })
 
   test('shows measured speed results after download and upload samples complete', async ({
-    plexo
+    fluxfetch
   }) => {
     test.setTimeout(60_000)
     let inFlight = 0
     let maxInFlight = 0
     let downloadRequests = 0
     let uploadRequests = 0
-    await plexo.page.route('https://speed.cloudflare.com/**', async (route) => {
+    await fluxfetch.page.route('https://speed.cloudflare.com/**', async (route) => {
       const bytes = Number(new URL(route.request().url()).searchParams.get('bytes') ?? 0)
       if (bytes > 100_000) {
         inFlight += 1
@@ -361,7 +370,7 @@ test.describe('UI journeys @smoke', () => {
       })
       if (bytes > 100_000) inFlight -= 1
     })
-    const page = plexo.page
+    const page = fluxfetch.page
     await page.getByRole('button', { name: 'Speed test' }).click()
     const dialog = page.getByRole('dialog')
     const duration = dialog.getByLabel('Speed test duration')
@@ -380,8 +389,8 @@ test.describe('UI journeys @smoke', () => {
     expect(uploadRequests).toBeGreaterThanOrEqual(17)
   })
 
-  test('schedule a linear batch and cancel one queued link', async ({ plexo }) => {
-    const encryptionAvailable = await plexo.evaluateMain(
+  test('schedule a linear batch and cancel one queued link', async ({ fluxfetch }) => {
+    const encryptionAvailable = await fluxfetch.evaluateMain(
       ({ safeStorage }) => safeStorage.isEncryptionAvailable(),
       null
     )
@@ -390,7 +399,7 @@ test.describe('UI journeys @smoke', () => {
       'This runner has no OS credential store for encrypted queue data'
     )
 
-    const page = plexo.page
+    const page = fluxfetch.page
     await page.getByRole('button', { name: /^Open download queue/ }).click()
     await expect(page.getByRole('heading', { name: 'Schedule and batch downloads' })).toBeVisible()
     await page
@@ -405,11 +414,11 @@ test.describe('UI journeys @smoke', () => {
     await expect(page.getByText('beta.zip')).toBeVisible()
   })
 
-  test('queue actions stay visible in a short window', async ({ plexo }) => {
-    await plexo.evaluateMain((_electron) => {
+  test('queue actions stay visible in a short window', async ({ fluxfetch }) => {
+    await fluxfetch.evaluateMain((_electron) => {
       _electron.BrowserWindow.getAllWindows()[0].setSize(500, 420)
     }, null)
-    const page = plexo.page
+    const page = fluxfetch.page
     await page.getByRole('button', { name: /^Open download queue/ }).click()
     const dialog = page.getByRole('dialog')
     await expect(
@@ -431,13 +440,13 @@ test.describe('UI journeys @smoke', () => {
   })
 
   test('paste a link, start, pause, resume, finish, reveal the file', async ({
-    plexo,
+    fluxfetch,
     serve,
     dirs
   }) => {
     const origin = await serve({ size: SIZE })
-    await stubNativeUi(plexo, dirs.dest)
-    const page = plexo.page
+    await stubNativeUi(fluxfetch, dirs.dest)
+    const page = fluxfetch.page
 
     await openAddUrl(page)
     await page.getByRole('button', { name: 'Browse…' }).click()
@@ -446,8 +455,8 @@ test.describe('UI journeys @smoke', () => {
     await expect(start).toBeEnabled()
 
     const reached = origin.hold(6 * BLOCK)
-    await plexo.expectNextDownload(origin.sha256)
-    const progressWindowPromise = plexo.electronApp.waitForEvent('window')
+    await fluxfetch.expectNextDownload(origin.sha256)
+    const progressWindowPromise = fluxfetch.electronApp.waitForEvent('window')
     await start.click()
     await reached
     const progressPage = await progressWindowPromise
@@ -463,28 +472,28 @@ test.describe('UI journeys @smoke', () => {
     const reveal = progressPage.getByRole('button', { name: /Reveal in Finder|Show in folder/ })
     await expect(reveal).toBeVisible()
     await reveal.click()
-    const { destinationPath } = (await plexo.current())!
+    const { destinationPath } = (await fluxfetch.current())!
     await expect
       .poll(() =>
-        plexo.evaluateMain(() => (globalThis as Record<string, unknown>).__revealed, null)
+        fluxfetch.evaluateMain(() => (globalThis as Record<string, unknown>).__revealed, null)
       )
       .toEqual([destinationPath])
   })
 
   test('cancel through the confirmation dialog, then "Download Again"', async ({
-    plexo,
+    fluxfetch,
     serve,
     dirs
   }) => {
     const origin = await serve({ size: SIZE })
-    await stubNativeUi(plexo, dirs.dest)
-    const page = plexo.page
+    await stubNativeUi(fluxfetch, dirs.dest)
+    const page = fluxfetch.page
     await openAddUrl(page)
     await page.getByRole('button', { name: 'Browse…' }).click()
     await page.getByRole('textbox', { name: 'LINK' }).fill(origin.url())
 
     const reached = origin.hold(6 * BLOCK)
-    const progressWindowPromise = plexo.electronApp.waitForEvent('window')
+    const progressWindowPromise = fluxfetch.electronApp.waitForEvent('window')
     await page.getByRole('button', { name: 'Start' }).click()
     await reached
     const progressPage = await progressWindowPromise
@@ -504,8 +513,8 @@ test.describe('UI journeys @smoke', () => {
     origin.release()
 
     await progressPage.getByRole('button', { name: 'Download Again' }).click()
-    await plexo.expectNextDownload(origin.sha256)
-    const retryWindowPromise = plexo.electronApp.waitForEvent('window')
+    await fluxfetch.expectNextDownload(origin.sha256)
+    const retryWindowPromise = fluxfetch.electronApp.waitForEvent('window')
     await page.getByRole('button', { name: 'Start' }).click({ timeout: 5000 })
     const retryPage = await retryWindowPromise
     await expect(
@@ -514,56 +523,58 @@ test.describe('UI journeys @smoke', () => {
   })
 
   test('a link the server rejects shows the error and keeps Start disabled', async ({
-    plexo,
+    fluxfetch,
     serve
   }) => {
     const origin = await serve({ size: SIZE })
     origin.setRule(() => ({ status: 404 }))
-    const page = plexo.page
+    const page = fluxfetch.page
     await openAddUrl(page)
     await page.getByRole('textbox', { name: 'LINK' }).fill(origin.url())
     await expect(page.getByText(/could not be found/)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Start' })).toBeDisabled()
   })
 
-  test('a completed download is shown again after a restart', async ({ plexo, serve }) => {
+  test('a completed download is shown again after a restart', async ({ fluxfetch, serve }) => {
     const origin = await serve({ size: SIZE })
-    await plexo.start(origin.url(), origin.sha256)
-    await plexo.waitForStatus('completed')
-    await plexo.relaunch()
-    await expect(plexo.page.getByRole('row', { name: /test\.bin/ })).toBeVisible()
+    await fluxfetch.start(origin.url(), origin.sha256)
+    await fluxfetch.waitForStatus('completed')
+    await fluxfetch.relaunch()
+    await expect(fluxfetch.page.getByRole('row', { name: /test\.bin/ })).toBeVisible()
   })
 
-  test('keeps each download in its own progress window', async ({ plexo, serve }) => {
+  test('keeps each download in its own progress window', async ({ fluxfetch, serve }) => {
     const first = await serve({ size: SIZE })
-    const firstWindowPromise = plexo.electronApp.waitForEvent('window')
-    await plexo.start(first.url(), first.sha256)
+    const firstWindowPromise = fluxfetch.electronApp.waitForEvent('window')
+    await fluxfetch.start(first.url(), first.sha256)
     const firstWindow = await firstWindowPromise
     await firstWindow.waitForLoadState('domcontentloaded')
-    await plexo.waitForStatus('completed')
+    await fluxfetch.waitForStatus('completed')
     await expect(firstWindow.getByRole('button', { name: 'New Download' })).toBeVisible()
 
     const second = await serve({ size: SIZE })
     const secondReached = second.hold(6 * BLOCK)
-    const secondWindowPromise = plexo.electronApp.waitForEvent('window')
-    await plexo.start(second.url(), second.sha256)
+    const secondWindowPromise = fluxfetch.electronApp.waitForEvent('window')
+    await fluxfetch.start(second.url(), second.sha256)
     await secondReached
     const secondWindow = await secondWindowPromise
     await secondWindow.waitForLoadState('domcontentloaded')
     await expect(secondWindow.getByRole('button', { name: 'Pause' })).toBeVisible()
     await expect(secondWindow.getByLabel('After all queued downloads finish')).toHaveValue('none')
     await expect(firstWindow.getByRole('button', { name: 'New Download' })).toBeVisible()
-    await expect(plexo.page.getByRole('button', { name: '+ Add URL' })).toBeVisible()
+    await expect(fluxfetch.page.getByRole('button', { name: '+ Add URL' })).toBeVisible()
   })
 })
 
 // What a user sets is still set after they reload or restart — checked only through what they see.
 test.describe('settings @smoke', () => {
-  test('settings stays inside a short window and scrolls to its last option', async ({ plexo }) => {
-    await plexo.evaluateMain((_electron) => {
+  test('settings stays inside a short window and scrolls to its last option', async ({
+    fluxfetch
+  }) => {
+    await fluxfetch.evaluateMain((_electron) => {
       _electron.BrowserWindow.getAllWindows()[0].setSize(700, 480)
     }, null)
-    const page = plexo.page
+    const page = fluxfetch.page
     await page.getByRole('button', { name: 'Settings' }).click()
     const dialog = page.getByRole('dialog')
     await expect(dialog.getByRole('heading', { name: 'FluxFetch settings' })).toBeVisible()
@@ -582,8 +593,10 @@ test.describe('settings @smoke', () => {
     await expect(dialog.getByRole('button', { name: 'Check now' })).toBeInViewport()
   })
 
-  test('settings close button responds across the center of its hit target', async ({ plexo }) => {
-    const page = plexo.page
+  test('settings close button responds across the center of its hit target', async ({
+    fluxfetch
+  }) => {
+    const page = fluxfetch.page
     await page.getByRole('button', { name: 'Settings' }).click()
     const dialog = page.getByRole('dialog')
     const close = dialog.getByRole('button', { name: 'Close' })
@@ -593,29 +606,31 @@ test.describe('settings @smoke', () => {
     await expect(dialog).not.toBeVisible()
   })
 
-  test('OmniLink button explains its Windows launch and network behavior', async ({ plexo }) => {
+  test('OmniLink button explains its Windows launch and network behavior', async ({
+    fluxfetch
+  }) => {
     test.skip(
-      (await plexo.page.evaluate(() => window.plexo.platform)) !== 'win32',
+      (await fluxfetch.page.evaluate(() => window.fluxfetch.platform)) !== 'win32',
       'OmniLink is a Windows-only integration'
     )
-    const button = plexo.page.getByRole('button', { name: 'Run OmniLink' })
+    const button = fluxfetch.page.getByRole('button', { name: 'Run OmniLink' })
     await expect(button).toBeVisible()
     await button.hover()
-    const tooltip = plexo.page.locator('[data-slot="tooltip-content"]')
+    const tooltip = fluxfetch.page.locator('[data-slot="tooltip-content"]')
     await expect(tooltip).toContainText('administrator approval')
     await expect(tooltip).toContainText('Steam')
     await expect(tooltip).toContainText('download servers')
   })
 
   test.describe('with an update available', () => {
-    test.use({ appEnv: { PLEXO_FORCE_UPDATE_VERSION: '9.9.9' } })
+    test.use({ appEnv: { FLUXFETCH_FORCE_UPDATE_VERSION: '9.9.9' } })
 
     test('every choice survives a reload and a restart, even made right before', async ({
-      plexo,
+      fluxfetch,
       dirs
     }) => {
-      const page = (): Page => plexo.page
-      const homeDir = await plexo.evaluateMain(({ app }) => app.getPath('home'), null)
+      const page = (): Page => fluxfetch.page
+      const homeDir = await fluxfetch.evaluateMain(({ app }) => app.getPath('home'), null)
       const displayedDestination = dirs.dest.startsWith(homeDir)
         ? `~${dirs.dest.slice(homeDir.length)}`
         : dirs.dest
@@ -628,7 +643,7 @@ test.describe('settings @smoke', () => {
         : 'Switch to dark theme'
       await themeToggle.click()
 
-      await stubNativeUi(plexo, dirs.dest)
+      await stubNativeUi(fluxfetch, dirs.dest)
       await openAddUrl(page())
       await page().getByRole('button', { name: 'Browse…' }).click()
 
@@ -659,53 +674,53 @@ test.describe('settings @smoke', () => {
       // No waiting for saves: a user doesn't either.
       await page().reload()
       await expectAllKept()
-      await plexo.relaunch()
+      await fluxfetch.relaunch()
       await expectAllKept()
     })
   })
 
   test('a broken settings file falls back to what a fresh install shows', async ({
-    plexo,
+    fluxfetch,
     dirs
   }) => {
     const settingsPath = join(dirs.userData, 'app-settings.json')
     // The TO row, as the user sees it — compared whole, so no platform's idea of the default
     // folder is baked into the test.
     const choices = (): Promise<string> =>
-      plexo.page.getByText('TO', { exact: true }).locator('..').innerText()
-    await openAddUrl(plexo.page)
+      fluxfetch.page.getByText('TO', { exact: true }).locator('..').innerText()
+    await openAddUrl(fluxfetch.page)
     const fresh = await choices()
 
-    await plexo.quit()
+    await fluxfetch.quit()
     await writeFile(settingsPath, '{"destinationDir": "/')
-    await plexo.launch()
-    await openAddUrl(plexo.page)
+    await fluxfetch.launch()
+    await openAddUrl(fluxfetch.page)
     expect(await choices()).toEqual(fresh)
 
-    await plexo.quit()
+    await fluxfetch.quit()
     await writeFile(settingsPath, JSON.stringify({ destinationDir: join(dirs.dest, 'unplugged') }))
-    await plexo.launch()
-    await openAddUrl(plexo.page)
+    await fluxfetch.launch()
+    await openAddUrl(fluxfetch.page)
     expect(await choices()).toEqual(fresh)
   })
 })
 
 test.describe('no networks', () => {
-  test.use({ appEnv: { PLEXO_E2E_INTERFACES: '' } })
+  test.use({ appEnv: { FLUXFETCH_E2E_INTERFACES: '' } })
 
-  test('a network appearing takes you back to the start screen @smoke', async ({ plexo }) => {
-    await openAddUrl(plexo.page)
-    await expect(plexo.page.getByText('No networks to combine')).toBeVisible()
-    await plexo.evaluateMain(
+  test('a network appearing takes you back to the start screen @smoke', async ({ fluxfetch }) => {
+    await openAddUrl(fluxfetch.page)
+    await expect(fluxfetch.page.getByText('No networks to combine')).toBeVisible()
+    await fluxfetch.evaluateMain(
       (_electron, value) => {
-        process.env['PLEXO_E2E_INTERFACES'] = value
+        process.env['FLUXFETCH_E2E_INTERFACES'] = value
       },
       interfacesEnv({ a: NETWORKS['a'] })
     )
     // The scan immediately finds the simulated interface and replaces this screen. Dispatch
     // the button event directly so Playwright doesn't wait for stability on a node that must
     // disappear as soon as its click handler finishes.
-    await plexo.page.getByRole('button', { name: 'Scan Again' }).dispatchEvent('click')
-    await expect(plexo.page.getByRole('textbox', { name: 'LINK' })).toBeVisible()
+    await fluxfetch.page.getByRole('button', { name: 'Scan Again' }).dispatchEvent('click')
+    await expect(fluxfetch.page.getByRole('textbox', { name: 'LINK' })).toBeVisible()
   })
 })

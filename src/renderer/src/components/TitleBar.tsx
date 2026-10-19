@@ -12,7 +12,7 @@ export type TitleBarStatus =
   | { kind: 'paused'; networkCount: number }
   | { kind: 'offline' }
 
-const isMac = window.plexo.platform === 'darwin'
+const isMac = window.fluxfetch.platform === 'darwin'
 
 const pillClass =
   'h-auto flex items-center gap-[7px] rounded-full px-2.5 py-1 font-mono text-[10px] leading-none font-semibold tracking-[0.08em] uppercase whitespace-nowrap'
@@ -35,9 +35,9 @@ export function TitleBar({
   const [maximized, setMaximized] = useState(false)
 
   useEffect(() => {
-    if (window.plexo.platform !== 'win32') return
-    void window.plexo.isWindowMaximized().then(setMaximized)
-    return window.plexo.onWindowStateChanged(setMaximized)
+    if (window.fluxfetch.platform !== 'win32') return
+    void window.fluxfetch.isWindowMaximized().then(setMaximized)
+    return window.fluxfetch.onWindowStateChanged(setMaximized)
   }, [])
 
   return (
@@ -48,7 +48,7 @@ export function TitleBar({
         isMac ? 'pl-[94px]' : 'pl-3.5'
       }`}
       style={
-        window.plexo.platform === 'win32' ? { paddingLeft: '14px', paddingRight: 0 } : undefined
+        window.fluxfetch.platform === 'win32' ? { paddingLeft: '14px', paddingRight: 0 } : undefined
       }
     >
       <div
@@ -73,7 +73,7 @@ export function TitleBar({
           className={pillClass}
         >
           <div
-            className={`${pillDotClass} bg-[var(--color-wifi)] animate-[plexo-glow_2s_ease-in-out_infinite]`}
+            className={`${pillDotClass} bg-[var(--color-wifi)] animate-[fluxfetch-glow_2s_ease-in-out_infinite]`}
           />
           {status.networkCount} {status.networkCount === 1 ? 'network' : 'networks'} combined
         </ColorBadge>
@@ -131,20 +131,20 @@ export function TitleBar({
           <Settings2 className="size-3.5" />
         </Button>
       )}
-      {libraryWindow && window.plexo.platform === 'win32' && (
+      {libraryWindow && window.fluxfetch.platform === 'win32' && (
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
           className="size-[26px] shrink-0 [-webkit-app-region:no-drag]"
-          onClick={() => void window.plexo.minimizeToTray()}
+          onClick={() => void window.fluxfetch.minimizeToTray()}
           aria-label="Minimize FluxFetch to tray"
           title="Minimize to tray"
         >
           <PanelBottomClose className="size-3.5" />
         </Button>
       )}
-      {window.plexo.platform === 'win32' && (
+      {window.fluxfetch.platform === 'win32' && (
         <div
           className="ml-1 flex h-11 shrink-0 [-webkit-app-region:no-drag]"
           aria-label="Window controls"
@@ -152,7 +152,7 @@ export function TitleBar({
           <button
             type="button"
             className="flex h-11 w-[46px] items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
-            onClick={() => void window.plexo.minimizeWindow()}
+            onClick={() => void window.fluxfetch.minimizeWindow()}
             aria-label="Minimize window"
             title="Minimize"
           >
@@ -161,7 +161,7 @@ export function TitleBar({
           <button
             type="button"
             className="flex h-11 w-[46px] items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
-            onClick={() => void window.plexo.toggleWindowMaximize()}
+            onClick={() => void window.fluxfetch.toggleWindowMaximize()}
             aria-label={maximized ? 'Restore window' : 'Maximize window'}
             title={maximized ? 'Restore' : 'Maximize'}
           >
@@ -174,7 +174,7 @@ export function TitleBar({
           <button
             type="button"
             className="flex h-11 w-[46px] items-center justify-center text-muted-foreground transition-colors hover:bg-red-600 hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-white"
-            onClick={() => void window.plexo.closeWindow()}
+            onClick={() => void window.fluxfetch.closeWindow()}
             aria-label="Close window"
             title="Close"
           >

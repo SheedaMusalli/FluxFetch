@@ -11,10 +11,19 @@ playwright-report
 .signing/
 release/
 native-host/*.exe
+build/FluxFetchButtons.dll
+build/FluxFetchButtons.lib
+build/FluxFetchButtons.exp
+build/installer-buttons.obj
 
 # Downloaded and generated release media
 media-tools/
 resources/omnilink/
+resources/torrent-engine/
+resources/torrent/
+build/installer-preview.nsh
+build/taskbar-extracted.png
+**/__pycache__/
 delivery-stage-browser*/
 artifacts/
 

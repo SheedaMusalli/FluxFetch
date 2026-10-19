@@ -23,7 +23,7 @@ type ProbeState =
   | { status: 'error'; message: string }
 
 const PROBE_DEBOUNCE_MS = 600
-const PASTE_SHORTCUT = window.plexo.platform === 'darwin' ? '⌘V' : 'Ctrl+V'
+const PASTE_SHORTCUT = window.fluxfetch.platform === 'darwin' ? '⌘V' : 'Ctrl+V'
 
 const fieldLabelClass = 'shrink-0 font-mono text-[10px] tracking-[0.14em] text-muted-foreground'
 
@@ -108,7 +108,7 @@ export function IdleScreen({
     setDestinationOverride(null)
     const timer = setTimeout(async () => {
       try {
-        const result = await window.plexo.probeUrl(trimmed, customUserAgent.trim() || undefined)
+        const result = await window.fluxfetch.probeUrl(trimmed, customUserAgent.trim() || undefined)
         if (probeRequestId.current !== requestId) return
         setProbe({ status: 'ready', result })
       } catch (error) {
@@ -202,7 +202,7 @@ export function IdleScreen({
   }
 
   const handleBrowse = async (): Promise<void> => {
-    const chosen = await window.plexo.chooseDestinationFolder(displayDestinationDir)
+    const chosen = await window.fluxfetch.chooseDestinationFolder(displayDestinationDir)
     if (chosen) {
       setDestinationDir(chosen)
       setDestinationOverride(chosen)
@@ -210,7 +210,7 @@ export function IdleScreen({
   }
 
   const handlePaste = async (): Promise<void> => {
-    const text = await window.plexo.readClipboardText()
+    const text = await window.fluxfetch.readClipboardText()
     if (text.trim()) setUrl(text.trim())
   }
 
@@ -219,7 +219,7 @@ export function IdleScreen({
     setStarting(true)
     setStartError(null)
     try {
-      await window.plexo.startDownload({
+      await window.fluxfetch.startDownload({
         url: probe.result.finalUrl,
         mirrorUrls: mirrorUrls
           .split(/\r?\n/)

@@ -1,8 +1,14 @@
 import { youtubeRequest } from './youtube-background.js'
 import { pageRequest } from './page-discovery.js'
-const HOST = 'com.plexo.browser'
+const HOST = 'com.fluxfetch.browser'
 const allowedHeaders = /^(cookie|authorization|referer|user-agent|origin|accept|accept-language)$/i
+// Automatic browser capture is intended for actual downloads, not page artwork,
+// favicons, thumbnails, and other tiny resources. Explicit context-menu sends
+// still honor the user's choice, and torrent files are handled separately.
+const MIN_CAPTURE_BYTES = 128 * 1024
+const imagePath = /\.(?:avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp)(?:$|[?#])/i
 let requests = new Map()
+const responses = new Map()
 let historyReady = chrome.storage.session.get('requests').then((value) => {
   requests = new Map(value.requests || [])
 })
@@ -32,11 +38,43 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
   ['requestHeaders', 'extraHeaders']
 )
 
+chrome.webRequest.onHeadersReceived.addListener(
+  (details) => {
+    if (details.incognito || details.method !== 'GET') return
+    const headers = Object.fromEntries(
+      (details.responseHeaders || []).map((header) => [
+        header.name.toLowerCase(),
+        header.value || ''
+      ])
+    )
+    responses.delete(details.url)
+    responses.set(details.url, {
+      mime: (headers['content-type'] || '').split(';', 1)[0].trim().toLowerCase(),
+      bytes: Number(headers['content-length']) || 0,
+      time: Date.now()
+    })
+    for (const [url, response] of responses)
+      if (Date.now() - response.time > 120000) responses.delete(url)
+    while (responses.size > 150) responses.delete(responses.keys().next().value)
+  },
+  { urls: ['http://*/*', 'https://*/*'] },
+  ['responseHeaders']
+)
+
+function isImageDownload(url, mime) {
+  if (/^image\//i.test(mime || '')) return true
+  try {
+    return imagePath.test(new URL(url).pathname)
+  } catch {
+    return imagePath.test(url || '')
+  }
+}
+
 async function native(message) {
   if (message.action === 'download' || message.action === 'torrent') {
     const status = await chrome.runtime.sendNativeMessage(HOST, { action: 'status' })
     if (message.action === 'torrent' && !status?.capabilities?.torrent)
-      throw new Error('Update the FluxFetch app to enable qBittorrent torrent handoff.')
+      throw new Error('Update FluxFetch to enable built-in torrent downloads.')
     if (message.action === 'download' && !status?.capabilities?.preflight)
       throw new Error(
         'Update the FluxFetch Windows app to 1.0.0-browser.2 or newer. This download will stay in your browser.'
@@ -109,7 +147,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     .then((result) => {
       if (!result.cancelled)
         return report(
-          result.added ? 'Sent torrent to qBittorrent.' : 'Added to FluxFetch’s download queue.'
+          result.added ? 'Torrent added to FluxFetch.' : 'Added to FluxFetch’s download queue.'
         )
     })
     .catch((error) => report(error.message, true))
@@ -133,6 +171,13 @@ async function capture(item) {
   const torrent =
     /\.torrent(?:$|[?#])/i.test(url) || /application\/x-bittorrent/i.test(item.mime || '')
   if (!http(url) || /\.(m3u8|mpd)(?:$|\?)/i.test(url)) return
+  const response = responses.get(url)
+  const mime = item.mime || response?.mime || ''
+  if (!torrent && isImageDownload(url, mime)) return
+  const knownSize = [item.totalBytes, item.fileSize, response?.bytes].find(
+    (size) => Number.isFinite(size) && size > 0
+  )
+  if (!torrent && knownSize !== undefined && knownSize < MIN_CAPTURE_BYTES) return
   const { capture = true, excluded = '' } = await chrome.storage.local.get(['capture', 'excluded'])
   const host = new URL(url).hostname
   if (
@@ -172,7 +217,7 @@ async function capture(item) {
       result.cancelled
         ? 'Download cancelled.'
         : result.added
-          ? 'Sent torrent to qBittorrent.'
+          ? 'Torrent added to FluxFetch.'
           : 'Added to FluxFetch’s download queue.'
     )
   } catch (error) {

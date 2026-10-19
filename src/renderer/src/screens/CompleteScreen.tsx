@@ -43,11 +43,11 @@ export function CompleteScreen({
   // "Chunks" in the block grid means byte ranges, not parallel connections.
   const totalChunkCount = download.totalBlocks ?? download.blocks?.length ?? 1
 
-  const handleReveal = (): void => void window.plexo.revealInFolder(download.destinationPath)
+  const handleReveal = (): void => void window.fluxfetch.revealInFolder(download.destinationPath)
   const handleOpen = async (): Promise<void> => {
     setOpenError(null)
     try {
-      await window.plexo.openFile(download.destinationPath)
+      await window.fluxfetch.openFile(download.destinationPath)
     } catch (error) {
       setOpenError(error instanceof Error ? error.message : 'FluxFetch could not open the file.')
     }
@@ -179,7 +179,7 @@ export function CompleteScreen({
           Open file
         </Button>
         <Button type="button" onClick={handleReveal}>
-          {window.plexo.platform === 'darwin' ? 'Reveal in Finder' : 'Show in folder'}
+          {window.fluxfetch.platform === 'darwin' ? 'Reveal in Finder' : 'Show in folder'}
         </Button>
       </ScreenFooter>
     </div>

@@ -29,13 +29,13 @@ function isNewer(latest: string, current: string): boolean {
 /** Checks the repo's latest GitHub release against the running app version. Same data source the
  * landing page's downloads list already reads, so there's no separate update feed to stand up.
  *
- * Uses the releases list so FluxFetch can offer the newest published release and direct users to
+ * Uses GitHub's latest stable release so drafts and prereleases are excluded. Directs users to
  * the FluxFetch Releases page for its notes and downloads. */
 export async function checkForUpdate(currentVersion: string): Promise<ReleaseInfo | null> {
   try {
-    const response = await net.fetch(`https://api.github.com/repos/${REPO}/releases?per_page=1`)
+    const response = await net.fetch(`https://api.github.com/repos/${REPO}/releases/latest`)
     if (!response.ok) return null
-    const [data] = (await response.json()) as { tag_name?: string }[]
+    const data = (await response.json()) as { tag_name?: string }
     if (!data?.tag_name) return null
     const version = data.tag_name.replace(/^v/, '')
     if (!isNewer(version, currentVersion)) return null

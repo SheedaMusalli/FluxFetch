@@ -8,3 +8,10 @@ test-results
 playwright-report
 integrations/omnilink/target
 scripts/*.ps1
+node_modules
+release
+outputs
+artifacts
+.signing
+resources/torrent
+resources/torrent-engine

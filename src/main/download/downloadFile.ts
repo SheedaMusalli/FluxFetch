@@ -66,7 +66,7 @@ export class DownloadFile {
       const candidateStem = candidateCharacters.join('')
       const candidate = join(directory, `${candidateStem}${suffix}${extension}`)
       if (candidate !== destinationPath) {
-        const partialExists = await lstat(`${candidate}.plexo`).then(
+        const partialExists = await lstat(`${candidate}.fluxfetch`).then(
           () => true,
           (error: NodeJS.ErrnoException) => {
             if (error.code === 'ENOENT') return false
@@ -97,7 +97,7 @@ export class DownloadFile {
 
         // When temporary data is on another volume, copy beside the final file and then rename
         // that complete copy atomically into place.
-        publicationTempPath = join(directory, `.${randomUUID()}.plexo-publish`)
+        publicationTempPath = join(directory, `.${randomUUID()}.fluxfetch-publish`)
         await copyFile(this.path, publicationTempPath, COPYFILE_EXCL)
         if (expectedBytes > 0 && (await stat(publicationTempPath)).size !== expectedBytes) {
           throw new Error('Published download copy does not match the expected size')

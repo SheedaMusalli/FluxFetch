@@ -17,7 +17,18 @@ class Program {
     try {
       string root = AppDomain.CurrentDomain.BaseDirectory;
       string expected = File.ReadAllText(Path.Combine(root, "extension-id.txt")).Trim();
-      if (args.Length == 0 || args[0] != "chrome-extension://" + expected + "/") return 2;
+      // Windows Chromium also supplies --parent-window (0 for service workers).
+      // Keep the exact origin allowlist while accepting that documented argument.
+      ulong parentWindow;
+      bool hasParentWindow = args.Length == 2 &&
+        args[1].StartsWith("--parent-window=", StringComparison.Ordinal) &&
+        UInt64.TryParse(args[1].Substring("--parent-window=".Length), out parentWindow);
+      bool chromium = (args.Length == 1 || hasParentWindow) &&
+        args[0] == "chrome-extension://" + expected + "/";
+      // Firefox passes the native manifest path and add-on ID; Chromium passes its origin.
+      bool firefox = args.Length == 2 && args[1] == "fluxfetch@fluxfetch.app" &&
+        String.Equals(Path.GetFileName(args[0]), "com.fluxfetch.browser.firefox.json", StringComparison.OrdinalIgnoreCase);
+      if (!chromium && !firefox) return 2;
       Stream input = Console.OpenStandardInput(), output = Console.OpenStandardOutput();
       int length = BitConverter.ToInt32(ReadExactly(input, 4), 0);
       if (length < 2 || length > 512 * 1024) return 3;
@@ -29,16 +40,16 @@ class Program {
       using (SHA256 hash = SHA256.Create()) {
         suffix = BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile).ToLowerInvariant()))).Replace("-", "").ToLowerInvariant().Substring(0, 16);
       }
-      #if PLEXO_TEST_HOST
+      #if FLUXFETCH_TEST_HOST
       // Only the separately compiled test executable can select a test pipe.
-      suffix = Environment.GetEnvironmentVariable("PLEXO_TEST_PIPE");
+      suffix = Environment.GetEnvironmentVariable("FLUXFETCH_TEST_PIPE");
       if (String.IsNullOrEmpty(suffix)) throw new Exception("Test pipe not set");
       #endif
       string response;
-      using (var pipe = new NamedPipeClientStream(".", "plexo-browser-" + suffix, PipeDirection.InOut, PipeOptions.Asynchronous)) {
+      using (var pipe = new NamedPipeClientStream(".", "fluxfetch-browser-" + suffix, PipeDirection.InOut, PipeOptions.Asynchronous)) {
         try { pipe.Connect(250); }
         catch (TimeoutException) {
-          #if PLEXO_TEST_HOST
+          #if FLUXFETCH_TEST_HOST
           throw;
           #else
           string exe = Path.GetFullPath(Path.Combine(root, "..", "..", "fluxfetch.exe"));

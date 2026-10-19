@@ -1,10 +1,10 @@
 # FluxFetch for Windows + Chrome
 
-FluxFetch for Windows **1.0.0**, x64. The desktop app uses Electron, and the browser helper is a compiled Windows .NET executable. License terms and notices are in [LICENSE](LICENSE) and [THIRD-PARTY-MEDIA.md](THIRD-PARTY-MEDIA.md).
+FluxFetch for Windows **2.0.0**, x64. The desktop app uses Electron, and the browser helper is a compiled Windows .NET executable. License terms and notices are in [LICENSE](LICENSE) and [THIRD-PARTY-MEDIA.md](THIRD-PARTY-MEDIA.md).
 
 ## Update an existing installation
 
-Run **fluxfetch-1.0.0-setup.exe**. Replace the contents of the folder you previously loaded as an unpacked extension with the new **FluxFetch-Chrome.zip** contents. At **edge://extensions** or **chrome://extensions**, click **Reload** on FluxFetch, then refresh your open website tabs. The extension version must be **1.3.1** and app version **1.0.0**.
+Run **fluxfetch-2.0.0-setup.exe**. Replace the contents of the folder you previously loaded as an unpacked extension with the new **FluxFetch-Chrome.zip** contents. At **edge://extensions** or **chrome://extensions**, click **Reload** on FluxFetch, then refresh your open website tabs. The extension version must be **1.4.0** and app version **2.0.0**.
 
 ## YouTube
 
@@ -16,7 +16,9 @@ This build uses yt-dlp and Deno to resolve formats for public YouTube videos. Th
 
 ## Install
 
-1. Run **FluxFetch-Windows-Setup.exe**. Choose your installation folder. The installer creates shortcuts and registers the browser helper for your Windows account.
+For current installation steps covering Chrome, Edge, Brave, Vivaldi, Opera/GX and Firefox, use the [browser setup guide](docs/BROWSER-SETUP.md). Firefox's v2.0.0 ZIP is unsigned and must be loaded temporarily; no Mozilla-signed XPI is included.
+
+1. Run **fluxfetch-2.0.0-setup.exe**. Choose your installation folder. The installer creates shortcuts and registers the browser helper for your Windows account.
 2. Extract **FluxFetch-Chrome.zip** into a permanent folder.
 3. Open `chrome://extensions`, turn on **Developer mode**, choose **Load unpacked**, and select the extracted folder containing `manifest.json`.
 4. Pin **FluxFetch Download Manager** using Chrome's Extensions button. Open its popup; it should say **Connected**. Opening the popup can start FluxFetch automatically.
@@ -69,7 +71,7 @@ Communication uses Chrome Native Messaging, a compiled helper, and a local Windo
 - **403/login page/expired URL:** download normally in Chrome or obtain a new direct link; do not repeatedly resume an expired link.
 - **Queue waiting:** inspect the desktop app for a paused/failed current download. Remove a failed waiting item in the popup and send its link again.
 - Uninstall FluxFetch using Windows Installed apps, and remove the extension at `chrome://extensions`. Downloaded files are retained. User preferences and encrypted recovery data may remain under `%APPDATA%\FluxFetch`.
-- This custom build does not offer upstream updates that would remove its browser integration. Install future custom builds manually.
+- Use FluxFetch's update check to open the FluxFetch GitHub releases page, then run the new installer in Update mode. Reload the matching browser extension after updating.
 
 ## Rebuild and test
 
@@ -91,7 +93,7 @@ npm run lint
 npm run typecheck
 npx playwright test e2e/download.spec.ts e2e/lifecycle.spec.ts --workers=2
 # Uses an isolated browser profile, test-only native host and named pipe.
-$env:PLEXO_TEST_BROWSER = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
+$env:FLUXFETCH_TEST_BROWSER = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
 npx playwright test e2e/browser.spec.ts e2e/pageButtons.spec.ts e2e/youtube.spec.ts --workers=1
 node scripts/test-youtube.cjs
 node scripts/verify-extension.cjs

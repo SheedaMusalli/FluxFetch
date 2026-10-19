@@ -24,11 +24,6 @@ export function SettingsDialog({
   const customUserAgent = useAppStore((s) => s.customUserAgent)
   const setCustomUserAgent = useAppStore((s) => s.setCustomUserAgent)
   const checkForUpdate = useAppStore((s) => s.checkForUpdate)
-  const [torrentUrl, setTorrentUrl] = useState('http://127.0.0.1:8080')
-  const [torrentUsername, setTorrentUsername] = useState('')
-  const [torrentPassword, setTorrentPassword] = useState('')
-  const [torrentStatus, setTorrentStatus] = useState('')
-  const [torrentBusy, setTorrentBusy] = useState(false)
   const [authOrigins, setAuthOrigins] = useState<string[]>([])
   const [authOrigin, setAuthOrigin] = useState('https://')
   const [authCookie, setAuthCookie] = useState('')
@@ -37,7 +32,7 @@ export function SettingsDialog({
   const [authPassword, setAuthPassword] = useState('')
   const [authStatus, setAuthStatus] = useState('')
   const [authBusy, setAuthBusy] = useState(false)
-  const [remote, setRemote] = useState(window.plexo.initialState.remoteManagement)
+  const [remote, setRemote] = useState(window.fluxfetch.initialState.remoteManagement)
   const [remoteUsername, setRemoteUsername] = useState(remote.username)
   const [remotePassword, setRemotePassword] = useState('')
   const [remoteStatus, setRemoteStatus] = useState('')
@@ -56,21 +51,21 @@ export function SettingsDialog({
   const [proxyBusy, setProxyBusy] = useState(false)
   useEffect(() => {
     if (open)
-      void window.plexo
+      void window.fluxfetch
         .listSiteAuthOrigins()
         .then(setAuthOrigins)
         .catch(() => {})
   }, [open])
   useEffect(() => {
     if (open)
-      void window.plexo
+      void window.fluxfetch
         .remoteAccessInfo()
         .then(setRemoteInfo)
         .catch(() => {})
   }, [open, remote.enabled])
   useEffect(() => {
     if (open)
-      void window.plexo
+      void window.fluxfetch
         .proxyConfigInfo()
         .then((info) => setProxyServer(info.server))
         .catch(() => {})
@@ -79,7 +74,7 @@ export function SettingsDialog({
     setAuthBusy(true)
     setAuthStatus('')
     try {
-      await window.plexo.saveSiteAuth({
+      await window.fluxfetch.saveSiteAuth({
         origin: authOrigin,
         cookie: authCookie,
         authorization: authHeader,
@@ -90,7 +85,7 @@ export function SettingsDialog({
       setAuthHeader('')
       setAuthUsername('')
       setAuthPassword('')
-      setAuthOrigins(await window.plexo.listSiteAuthOrigins())
+      setAuthOrigins(await window.fluxfetch.listSiteAuthOrigins())
       setAuthStatus('Authentication saved securely for this site.')
     } catch (error) {
       setAuthStatus(error instanceof Error ? error.message : String(error))
@@ -98,37 +93,20 @@ export function SettingsDialog({
       setAuthBusy(false)
     }
   }
-  const saveAndTestTorrent = async (): Promise<void> => {
-    setTorrentBusy(true)
-    setTorrentStatus('')
-    try {
-      await window.plexo.saveTorrentClientConfig({
-        baseUrl: torrentUrl,
-        username: torrentUsername,
-        password: torrentPassword
-      })
-      setTorrentPassword('')
-      setTorrentStatus(await window.plexo.testTorrentClient())
-    } catch (error) {
-      setTorrentStatus(error instanceof Error ? error.message : String(error))
-    } finally {
-      setTorrentBusy(false)
-    }
-  }
   const chooseFolder = async (): Promise<void> => {
-    const chosen = await window.plexo.chooseDestinationFolder(destinationDir || downloadsDir)
+    const chosen = await window.fluxfetch.chooseDestinationFolder(destinationDir || downloadsDir)
     if (chosen) useAppStore.getState().setDestinationDir(chosen)
   }
   const saveRemote = async (): Promise<void> => {
     setRemoteBusy(true)
     setRemoteStatus('')
     try {
-      await window.plexo.saveRemoteCredentials(remoteUsername, remotePassword)
+      await window.fluxfetch.saveRemoteCredentials(remoteUsername, remotePassword)
       const next = { ...remote, username: remoteUsername.trim() }
-      await window.plexo.updateSettings({ remoteManagement: next })
+      await window.fluxfetch.updateSettings({ remoteManagement: next })
       setRemote(next)
       setRemotePassword('')
-      setRemoteInfo(await window.plexo.remoteAccessInfo())
+      setRemoteInfo(await window.fluxfetch.remoteAccessInfo())
       setRemoteStatus(
         next.enabled
           ? 'Remote access is running.'
@@ -145,9 +123,9 @@ export function SettingsDialog({
     setRemoteStatus('')
     try {
       const next = { ...remote, enabled: !remote.enabled, username: remoteUsername.trim() }
-      await window.plexo.updateSettings({ remoteManagement: next })
+      await window.fluxfetch.updateSettings({ remoteManagement: next })
       setRemote(next)
-      setRemoteInfo(await window.plexo.remoteAccessInfo())
+      setRemoteInfo(await window.fluxfetch.remoteAccessInfo())
       setRemoteStatus(next.enabled ? 'Remote access is running.' : 'Remote access is stopped.')
     } catch (error) {
       setRemoteStatus(error instanceof Error ? error.message : String(error))
@@ -159,8 +137,8 @@ export function SettingsDialog({
     setProxyBusy(true)
     setProxyStatus('')
     try {
-      await window.plexo.saveProxyConfig(proxyServer, proxyUsername, proxyPassword)
-      const info = await window.plexo.proxyConfigInfo()
+      await window.fluxfetch.saveProxyConfig(proxyServer, proxyUsername, proxyPassword)
+      const info = await window.fluxfetch.proxyConfigInfo()
       setProxyServer(info.server)
       setProxyEnabled(info.enabled)
       setProxyUsername('')
@@ -193,58 +171,6 @@ export function SettingsDialog({
             <Button variant="outline" size="sm" onClick={() => void chooseFolder()}>
               <FolderOpen /> Change folder
             </Button>
-          </div>
-          <div className="rounded-lg border border-border p-3">
-            <div className="mb-1 text-sm font-medium">Torrent support · qBittorrent</div>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Enable qBittorrent WebUI on this PC. FluxFetch sends magnet links and .torrent files
-              to its local WebUI after your confirmation.
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <input
-                aria-label="qBittorrent WebUI address"
-                value={torrentUrl}
-                onChange={(event) => setTorrentUrl(event.target.value)}
-                placeholder="http://127.0.0.1:8080"
-                className="min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm sm:col-span-2"
-              />
-              <input
-                aria-label="qBittorrent WebUI username"
-                value={torrentUsername}
-                onChange={(event) => setTorrentUsername(event.target.value)}
-                placeholder="WebUI username"
-                autoComplete="username"
-                className="min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm"
-              />
-              <input
-                aria-label="qBittorrent WebUI password"
-                type="password"
-                value={torrentPassword}
-                onChange={(event) => setTorrentPassword(event.target.value)}
-                placeholder="WebUI password"
-                autoComplete="new-password"
-                className="min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void saveAndTestTorrent()}
-                disabled={torrentBusy}
-              >
-                {torrentBusy ? 'Connecting…' : 'Save and test connection'}
-              </Button>
-              {torrentStatus && (
-                <span role="status" className="text-xs text-muted-foreground">
-                  {torrentStatus}
-                </span>
-              )}
-            </div>
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Credentials are stored encrypted by Windows. For security, this connection is limited
-              to localhost.
-            </p>
           </div>
           <div className="rounded-lg border border-border p-3">
             <div className="mb-1 text-sm font-medium">Proxy server</div>
@@ -313,9 +239,9 @@ export function SettingsDialog({
                       type="button"
                       className="shrink-0 text-destructive hover:underline"
                       onClick={() =>
-                        void window.plexo
+                        void window.fluxfetch
                           .removeSiteAuth(origin)
-                          .then(() => window.plexo.listSiteAuthOrigins().then(setAuthOrigins))
+                          .then(() => window.fluxfetch.listSiteAuthOrigins().then(setAuthOrigins))
                       }
                     >
                       Remove

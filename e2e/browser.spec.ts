@@ -26,8 +26,8 @@ test('compiled host, encrypted queue, authenticated transfers, restart and redir
     message: object,
     origin = `chrome-extension://${extensionId}/`
   ): Promise<HostResponse> {
-    const child = spawn(isolated.executable, [origin], {
-      env: { ...process.env, PLEXO_TEST_PIPE: isolated.pipe },
+    const child = spawn(isolated.executable, [origin, '--parent-window=0'], {
+      env: { ...process.env, FLUXFETCH_TEST_PIPE: isolated.pipe },
       windowsHide: true
     })
     const payload = Buffer.from(JSON.stringify(message)),
@@ -97,9 +97,9 @@ test('compiled host, encrypted queue, authenticated transfers, restart and redir
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   const url = `http://127.0.0.1:${(server.address() as { port: number }).port}`
   const app = new FluxFetchApp(dirs, {
-    PLEXO_E2E_BROWSER_BRIDGE: '1',
-    PLEXO_E2E_BROWSER_PIPE: isolated.pipe,
-    PLEXO_E2E_INTERFACES: 'a=127.0.0.1'
+    FLUXFETCH_E2E_BROWSER_BRIDGE: '1',
+    FLUXFETCH_E2E_BROWSER_PIPE: isolated.pipe,
+    FLUXFETCH_E2E_INTERFACES: 'a=127.0.0.1'
   })
   try {
     await app.launch()
@@ -209,20 +209,32 @@ test('real Chromium extension captures files, shows its queue, and falls back wh
     /* no previous registration */
   }
   const app = new FluxFetchApp(dirs, {
-    PLEXO_E2E_BROWSER_BRIDGE: '1',
-    PLEXO_E2E_BROWSER_PIPE: isolated.pipe,
-    PLEXO_E2E_INTERFACES: 'a=127.0.0.1'
+    FLUXFETCH_E2E_BROWSER_BRIDGE: '1',
+    FLUXFETCH_E2E_BROWSER_PIPE: isolated.pipe,
+    FLUXFETCH_E2E_INTERFACES: 'a=127.0.0.1'
   })
   const data = Buffer.alloc(1024 * 1024, 88)
   const server = createServer((req, res) => {
     if (req.url === '/') {
       res.setHeader('Content-Type', 'text/html')
-      res.end('<a href="/file" download>Download file</a>')
+      res.end(
+        '<a href="/file" download>Download file</a><a href="/tiny.png" download>Download image</a><a href="/tiny.bin" download>Download tiny file</a>'
+      )
       return
     }
     if (!req.headers.cookie?.includes('auth=extension-secret')) {
       res.writeHead(403)
       res.end()
+      return
+    }
+    if (req.url === '/tiny.png' || req.url === '/tiny.bin') {
+      const image = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0])
+      res.writeHead(200, {
+        'Content-Type': req.url === '/tiny.png' ? 'image/png' : 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${req.url === '/tiny.png' ? 'tiny.png' : 'tiny.bin'}"`,
+        'Content-Length': image.length
+      })
+      res.end(image)
       return
     }
     const range = /bytes=(\d+)-(\d*)/.exec(req.headers.range || '')
@@ -257,9 +269,9 @@ test('real Chromium extension captures files, shows its queue, and falls back wh
     await app.launch()
     await app.api.updateSettings({ destinationDir: dirs.dest })
     browser = await chromium.launchPersistentContext(join(dirs.userData, 'chrome-test'), {
-      env: { ...process.env, PLEXO_TEST_PIPE: isolated.pipe },
+      env: { ...process.env, FLUXFETCH_TEST_PIPE: isolated.pipe },
       channel: 'chromium',
-      executablePath: process.env.PLEXO_TEST_BROWSER,
+      executablePath: process.env.FLUXFETCH_TEST_BROWSER,
       headless: true,
       args: [
         `--disable-extensions-except=${isolated.extension}`,
@@ -284,7 +296,7 @@ test('real Chromium extension captures files, shows its queue, and falls back wh
         async () => {
           try {
             const files = await readdir(dirs.dest)
-            const file = files.find((name) => !name.endsWith('.plexo'))
+            const file = files.find((name) => !name.endsWith('.fluxfetch'))
             return !!file && (await readFile(join(dirs.dest, file))).equals(data)
           } catch {
             return false
@@ -296,6 +308,20 @@ test('real Chromium extension captures files, shows its queue, and falls back wh
     await popup.reload()
     await expect(popup.locator('#message')).toContainText('Added to FluxFetch')
     await expect(popup.locator('#current')).toContainText('completed')
+    const imageDownloadPromise = page.waitForEvent('download')
+    await page.getByText('Download image').click()
+    const imageDownload = await imageDownloadPromise
+    const imagePath = await imageDownload.path()
+    expect(imagePath).toBeTruthy()
+    expect((await readFile(imagePath!)).subarray(0, 8)).toEqual(
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
+    )
+    const tinyDownloadPromise = page.waitForEvent('download')
+    await page.getByText('Download tiny file').click()
+    const tinyDownload = await tinyDownloadPromise
+    const tinyPath = await tinyDownload.path()
+    expect(tinyPath).toBeTruthy()
+    expect((await readFile(tinyPath!)).length).toBeLessThan(128 * 1024)
     await app.page.screenshot({ path: join(root, 'release/windows-preview.png') })
     await popup.screenshot({ path: join(root, 'release/extension-preview.png') })
     // Leave the app running but unregister the host: Chrome must resume its own transfer.

@@ -26,7 +26,8 @@ import { NetworkMonitor } from '../network/interfaces'
 import { loadSettings, saveSettings } from '../settings'
 import { testKnobs } from '../testKnobs'
 import { checkForUpdate, UPDATE_PAGE_URL } from '../updateCheck'
-import { saveTorrentClientConfig, testTorrentClient } from '../torrent/qbittorrent'
+import { TorrentManager } from '../torrent/libtorrent'
+import { createTransferSummary } from '../../shared/transfers'
 import { extractArchiveEntries, previewArchive } from '../archive'
 import { listSiteAuthOrigins, removeSiteAuth, saveSiteAuth, siteAuthContext } from '../siteAuth'
 import {
@@ -85,7 +86,7 @@ async function runPostDownloadAction(action: 'close' | 'sleep' | 'shutdown'): Pr
 }
 
 /** Typed wrapper around ipcMain.handle — the channel name picks its args/result shape out of
- * IpcContract, so a handler here that doesn't match what plexoApi (preload) actually calls is a
+ * IpcContract, so a handler here that doesn't match what fluxfetchApi (preload) actually calls is a
  * compile error instead of a silent runtime mismatch. */
 function handle<K extends keyof IpcContract>(
   channel: K,
@@ -105,7 +106,8 @@ const DESTINATION_CHECK_MS = 300
 export function registerIpcHandlers(
   getWindow: () => BrowserWindow | null,
   getWindows: () => BrowserWindow[],
-  openDownloadWindow: (downloadId: string) => void
+  openDownloadWindow: (downloadId: string) => void,
+  torrents: TorrentManager
 ): DownloadManager {
   const speedTestConnections = new Map<
     string,
@@ -328,7 +330,7 @@ export function registerIpcHandlers(
         remoteManagement: settings.remoteManagement ?? { enabled: false, port: 8787, username: '' }
       } satisfies InitialState
     } catch (error) {
-      console.error('[plexo] failed to read initial state', error)
+      console.error('[fluxfetch] failed to read initial state', error)
       // No getPath() here — it may be what threw. An empty destination just keeps Start disabled.
       event.returnValue = {
         homeDir: '',
@@ -425,8 +427,70 @@ export function registerIpcHandlers(
     await shell.openExternal(url.href)
   })
 
-  handle('saveTorrentClientConfig', async (_event, config) => saveTorrentClientConfig(config))
-  handle('testTorrentClient', async () => testTorrentClient())
+  const addTorrentAfterConfirmation = async (
+    source: string,
+    fileName: string,
+    localFile = false
+  ): Promise<boolean> => {
+    const settings = await loadSettings()
+    const window = getWindow()
+    if (!window || window.isDestroyed()) throw new Error('The FluxFetch window is not available.')
+    const confirmation = await manager.confirmExternalDownload(
+      fileName,
+      `BitTorrent · ${source.startsWith('magnet:') ? 'magnet link' : fileName}`
+    )
+    if (!confirmation.accepted) return false
+    const baseDir =
+      confirmation.destinationDir || settings.destinationDir || app.getPath('downloads')
+    const destinationDir = baseDir
+    if (localFile)
+      await torrents.addFile(source, destinationDir, settings.maxDownloadSpeedBytesPerSec ?? 0)
+    else await torrents.add(source, destinationDir, settings.maxDownloadSpeedBytesPerSec ?? 0)
+    return true
+  }
+  handle('addTorrent', async (_event, source) => {
+    if (typeof source !== 'string' || source.length > 16_384)
+      throw new Error('That torrent source is invalid.')
+    let fileName = 'Torrent download'
+    if (source.startsWith('magnet:')) {
+      try {
+        fileName = new URL(source).searchParams.get('dn') || fileName
+      } catch {
+        /* validated by engine */
+      }
+    } else {
+      try {
+        fileName = decodeURIComponent(new URL(source).pathname.split('/').pop() || fileName)
+      } catch {
+        /* validated by engine */
+      }
+    }
+    return addTorrentAfterConfirmation(source, fileName.slice(0, 240))
+  })
+  handle('chooseTorrentFile', async () => {
+    const window = getWindow()
+    if (!window || window.isDestroyed()) throw new Error('The FluxFetch window is not available.')
+    const result = await dialog.showOpenDialog(window, {
+      title: 'Open torrent file',
+      properties: ['openFile'],
+      filters: [{ name: 'BitTorrent files', extensions: ['torrent'] }]
+    })
+    if (result.canceled || !result.filePaths[0]) return false
+    return addTorrentAfterConfirmation(
+      result.filePaths[0],
+      result.filePaths[0].split(/[\\/]/).pop() || 'Torrent download',
+      true
+    )
+  })
+  handle('listTorrents', async () => torrents.list())
+  handle('getTransferSummary', async () =>
+    createTransferSummary(await manager.listTransferProgress(), torrents.getProgressSnapshot())
+  )
+  handle('pauseTorrent', async (_event, gid) => torrents.pause(gid))
+  handle('resumeTorrent', async (_event, gid) => torrents.resume(gid))
+  handle('reannounceTorrent', async (_event, gid) => torrents.reannounce(gid))
+  handle('openTorrentFolder', async (_event, gid) => torrents.openFolder(gid))
+  handle('removeTorrent', async (_event, gid, deleteFiles) => torrents.remove(gid, deleteFiles))
   handle('listSiteAuthOrigins', async () => listSiteAuthOrigins())
   handle('saveSiteAuth', async (_event, input) => saveSiteAuth(input.origin, input))
   handle('removeSiteAuth', async (_event, origin) => removeSiteAuth(origin))

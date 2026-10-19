@@ -1,0 +1,7 @@
+{
+  "name": "com.fluxfetch.browser",
+  "description": "FluxFetch browser integration for Firefox",
+  "path": "FluxFetch.BrowserHost.exe",
+  "type": "stdio",
+  "allowed_extensions": ["fluxfetch@fluxfetch.app"]
+}

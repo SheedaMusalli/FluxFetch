@@ -10,20 +10,21 @@ use windows_sys::Win32::Graphics::Gdi::{
     CreateRoundRectRgn, CreateSolidBrush, DeleteDC, DeleteObject, DrawTextW, EndPaint, FillRect,
     GetStockObject, InvalidateRect, RoundRect, SelectObject, SetBkMode, SetTextColor, SetWindowRgn,
     CLEARTYPE_QUALITY, DEFAULT_CHARSET, DT_CENTER, DT_LEFT, DT_NOPREFIX, DT_RIGHT, DT_SINGLELINE,
-    DT_VCENTER, FW_BOLD, FW_NORMAL, HDC, HFONT, NULL_BRUSH, NULL_PEN, PAINTSTRUCT, PS_SOLID,
-    SRCCOPY, TRANSPARENT,
+    DT_VCENTER, FW_BOLD, FW_NORMAL, HDC, HFONT, NULL_BRUSH, PAINTSTRUCT, PS_SOLID, SRCCOPY,
+    TRANSPARENT,
 };
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::ReleaseCapture;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     AppendMenuW, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu, DispatchMessageW,
     GetClientRect, GetCursorPos, GetMessageW, GetSystemMetrics, LoadCursorW, PostMessageW,
-    RegisterClassExW, SendMessageW, SetLayeredWindowAttributes, SetTimer, SetWindowPos, ShowWindow,
-    TrackPopupMenu, TranslateMessage, HTCAPTION, HWND_TOPMOST, IDC_ARROW, LWA_ALPHA, MF_STRING,
-    SM_CXSCREEN, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOW, TPM_RIGHTBUTTON, WM_CREATE, WM_DESTROY,
-    WM_LBUTTONDOWN, WM_NCLBUTTONDOWN, WM_PAINT, WM_RBUTTONUP, WM_TIMER, WM_USER, WNDCLASSEXW,
-    WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
+    RegisterClassExW, SendMessageW, SetTimer, SetWindowPos, ShowWindow, TrackPopupMenu,
+    TranslateMessage, HTCAPTION, HWND_TOPMOST, IDC_ARROW, MF_STRING, SM_CXSCREEN, SWP_NOMOVE,
+    SWP_NOSIZE, SW_HIDE, SW_SHOW, TPM_RIGHTBUTTON, WM_CREATE, WM_DESTROY, WM_LBUTTONDOWN,
+    WM_NCLBUTTONDOWN, WM_PAINT, WM_RBUTTONUP, WM_TIMER, WM_USER, WNDCLASSEXW, WS_EX_TOOLWINDOW,
+    WS_EX_TOPMOST, WS_POPUP,
 };
 
+use crate::interceptor::SteamInterceptor;
 use crate::load_balancer::LoadBalancer;
 
 #[link(name = "user32")]
@@ -34,10 +35,13 @@ extern "system" {
 
 const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: isize = -4;
 
-const BASE_WIDTH: i32 = 340;
-const BASE_ROW_HEIGHT: i32 = 56;
-const BASE_HEADER_HEIGHT: i32 = 68;
-const BASE_PADDING: i32 = 12;
+const BASE_WIDTH: i32 = 300;
+const BASE_ROW_HEIGHT: i32 = 68;
+const BASE_HEADER_HEIGHT: i32 = 28;
+const BASE_SUMMARY_HEIGHT: i32 = 54;
+const BASE_DETAILS_HEADER_HEIGHT: i32 = 28;
+const BASE_FOOTER_HEIGHT: i32 = 20;
+const BASE_PADDING: i32 = 8;
 const BASE_CORNER_RADIUS: i32 = 14;
 
 const TIMER_REFRESH_ID: usize = 1001;
@@ -48,19 +52,21 @@ const WM_DPICHANGED: u32 = 0x02E0;
 const MENU_CMD_HIDE: usize = 2001;
 const MENU_CMD_RESET_POS: usize = 2002;
 
-/// Thread-safe controller for the desktop transparent HUD overlay
+/// Thread-safe controller for the desktop OmniLink overlay.
 pub struct OverlayController {
     hwnd: AtomicIsize,
     visible: AtomicBool,
     load_balancer: Arc<LoadBalancer>,
+    interceptor: Arc<SteamInterceptor>,
 }
 
 impl OverlayController {
-    pub fn new(load_balancer: Arc<LoadBalancer>) -> Arc<Self> {
+    pub fn new(load_balancer: Arc<LoadBalancer>, interceptor: Arc<SteamInterceptor>) -> Arc<Self> {
         let controller = Arc::new(Self {
             hwnd: AtomicIsize::new(0),
             visible: AtomicBool::new(true),
             load_balancer,
+            interceptor,
         });
 
         let ctrl_clone = Arc::clone(&controller);
@@ -109,11 +115,13 @@ struct WindowThreadContext {
     controller: Arc<OverlayController>,
     dpi: u32,
     last_height: i32,
+    expanded: bool,
     font_title: HFONT,
     font_bold: HFONT,
     font_normal: HFONT,
     font_small: HFONT,
     font_badge: HFONT,
+    font_metric: HFONT,
 }
 
 impl WindowThreadContext {
@@ -123,11 +131,13 @@ impl WindowThreadContext {
             controller,
             dpi,
             last_height: 0,
-            font_title: unsafe { create_font("Segoe UI", 13, FW_BOLD, dpi) },
+            expanded: false,
+            font_title: unsafe { create_font("Segoe UI", 11, FW_BOLD, dpi) },
             font_bold: unsafe { create_font("Segoe UI", 11, FW_BOLD, dpi) },
             font_normal: unsafe { create_font("Segoe UI", 10, FW_NORMAL, dpi) },
-            font_small: unsafe { create_font("Segoe UI", 9, FW_NORMAL, dpi) },
-            font_badge: unsafe { create_font("Segoe UI", 8, FW_BOLD, dpi) },
+            font_small: unsafe { create_font("Segoe UI", 8, FW_NORMAL, dpi) },
+            font_badge: unsafe { create_font("Segoe UI", 7, FW_BOLD, dpi) },
+            font_metric: unsafe { create_font("Segoe UI", 14, FW_BOLD, dpi) },
         }
     }
 
@@ -142,11 +152,12 @@ impl WindowThreadContext {
         }
         self.destroy_fonts();
         self.dpi = new_dpi;
-        self.font_title = create_font("Segoe UI", 13, FW_BOLD, new_dpi);
+        self.font_title = create_font("Segoe UI", 11, FW_BOLD, new_dpi);
         self.font_bold = create_font("Segoe UI", 11, FW_BOLD, new_dpi);
         self.font_normal = create_font("Segoe UI", 10, FW_NORMAL, new_dpi);
-        self.font_small = create_font("Segoe UI", 9, FW_NORMAL, new_dpi);
-        self.font_badge = create_font("Segoe UI", 8, FW_BOLD, new_dpi);
+        self.font_small = create_font("Segoe UI", 8, FW_NORMAL, new_dpi);
+        self.font_badge = create_font("Segoe UI", 7, FW_BOLD, new_dpi);
+        self.font_metric = create_font("Segoe UI", 14, FW_BOLD, new_dpi);
     }
 
     unsafe fn destroy_fonts(&mut self) {
@@ -170,6 +181,10 @@ impl WindowThreadContext {
             DeleteObject(self.font_badge as *mut _);
             self.font_badge = ptr::null_mut();
         }
+        if !self.font_metric.is_null() {
+            DeleteObject(self.font_metric as *mut _);
+            self.font_metric = ptr::null_mut();
+        }
     }
 }
 
@@ -178,6 +193,21 @@ fn to_wide(s: &str) -> Vec<u16> {
         .encode_wide()
         .chain(std::iter::once(0))
         .collect()
+}
+
+fn overlay_height(ctx: &WindowThreadContext) -> i32 {
+    let details = if ctx.expanded {
+        ctx.scale(BASE_DETAILS_HEADER_HEIGHT)
+            + (ctx.controller.load_balancer.snapshot_states().len().max(1) as i32)
+                * ctx.scale(BASE_ROW_HEIGHT)
+    } else {
+        0
+    };
+    ctx.scale(BASE_PADDING * 2)
+        + ctx.scale(BASE_HEADER_HEIGHT)
+        + ctx.scale(BASE_SUMMARY_HEIGHT)
+        + ctx.scale(BASE_FOOTER_HEIGHT)
+        + details
 }
 
 fn run_overlay_window_thread(controller: Arc<OverlayController>) {
@@ -214,14 +244,12 @@ fn run_overlay_window_thread(controller: Arc<OverlayController>) {
         let ctx_ptr = Box::into_raw(ctx);
 
         let initial_width = (*ctx_ptr).scale(BASE_WIDTH);
-        let initial_height = (*ctx_ptr).scale(BASE_HEADER_HEIGHT)
-            + (*ctx_ptr).scale(BASE_PADDING) * 2
-            + (*ctx_ptr).scale(BASE_ROW_HEIGHT) * 2;
+        let initial_height = overlay_height(&*ctx_ptr);
         let start_x = screen_width - initial_width - (*ctx_ptr).scale(24);
         let start_y = (*ctx_ptr).scale(36);
 
         let hwnd = CreateWindowExW(
-            WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW,
+            WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
             class_name.as_ptr(),
             window_title.as_ptr(),
             WS_POPUP,
@@ -248,9 +276,7 @@ fn run_overlay_window_thread(controller: Arc<OverlayController>) {
         ctx_mut.update_dpi(dpi);
 
         let final_width = ctx_mut.scale(BASE_WIDTH);
-        let final_height = ctx_mut.scale(BASE_HEADER_HEIGHT)
-            + ctx_mut.scale(BASE_PADDING) * 2
-            + ctx_mut.scale(BASE_ROW_HEIGHT) * 2;
+        let final_height = overlay_height(ctx_mut);
         ctx_mut.last_height = final_height;
 
         let x = screen_width - final_width - ctx_mut.scale(24);
@@ -264,9 +290,6 @@ fn run_overlay_window_thread(controller: Arc<OverlayController>) {
             final_height,
             ctx_mut.scale(BASE_CORNER_RADIUS),
         );
-
-        // Set high-opacity dark glass translucency (alpha = 238 / 255 -> ~93% opacity)
-        SetLayeredWindowAttributes(hwnd, 0, 238, LWA_ALPHA);
 
         // Keep pinned on top
         SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
@@ -333,7 +356,29 @@ unsafe extern "system" fn overlay_wnd_proc(
             0
         }
         WM_LBUTTONDOWN => {
-            // Drag the overlay across monitors smoothly
+            let ctx_ptr = windows_sys::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW(
+                hwnd,
+                windows_sys::Win32::UI::WindowsAndMessaging::GWLP_USERDATA,
+            ) as *mut WindowThreadContext;
+            if !ctx_ptr.is_null() {
+                let ctx = &mut *ctx_ptr;
+                let mut rect: RECT = std::mem::zeroed();
+                GetClientRect(hwnd, &mut rect);
+                let x = (lparam as u32 & 0xFFFF) as u16 as i16 as i32;
+                let y = ((lparam as u32 >> 16) & 0xFFFF) as u16 as i16 as i32;
+                let footer_top = rect.bottom - ctx.scale(BASE_PADDING + BASE_FOOTER_HEIGHT);
+                if y >= footer_top && x >= rect.right - ctx.scale(170) {
+                    ctx.expanded = !ctx.expanded;
+                    let height = overlay_height(ctx);
+                    ctx.last_height = height;
+                    let width = ctx.scale(BASE_WIDTH);
+                    SetWindowPos(hwnd, ptr::null_mut(), 0, 0, width, height, SWP_NOMOVE);
+                    apply_rounded_window_region(hwnd, width, height, ctx.scale(BASE_CORNER_RADIUS));
+                    InvalidateRect(hwnd, ptr::null(), 0);
+                    return 0;
+                }
+            }
+            // Drag the overlay from anywhere except its expand/collapse control.
             ReleaseCapture();
             SendMessageW(hwnd, WM_NCLBUTTONDOWN, HTCAPTION as usize, 0);
             0
@@ -351,11 +396,7 @@ unsafe extern "system" fn overlay_wnd_proc(
 
                 if !ctx_ptr.is_null() {
                     let ctx = &mut *ctx_ptr;
-                    let adapter_count = ctx.controller.load_balancer.snapshot_states().len();
-                    let target_height = ctx.scale(BASE_HEADER_HEIGHT)
-                        + ctx.scale(BASE_PADDING) * 2
-                        + (adapter_count as i32 * ctx.scale(BASE_ROW_HEIGHT))
-                            .max(ctx.scale(BASE_ROW_HEIGHT));
+                    let target_height = overlay_height(ctx);
 
                     if ctx.last_height != target_height {
                         ctx.last_height = target_height;
@@ -389,12 +430,8 @@ unsafe extern "system" fn overlay_wnd_proc(
                 let new_dpi = (wparam & 0xFFFF) as u32;
                 ctx.update_dpi(new_dpi);
 
-                let adapter_count = ctx.controller.load_balancer.snapshot_states().len();
                 let width = ctx.scale(BASE_WIDTH);
-                let height = ctx.scale(BASE_HEADER_HEIGHT)
-                    + ctx.scale(BASE_PADDING) * 2
-                    + (adapter_count as i32 * ctx.scale(BASE_ROW_HEIGHT))
-                        .max(ctx.scale(BASE_ROW_HEIGHT));
+                let height = overlay_height(ctx);
                 ctx.last_height = height;
 
                 let rect = &*(lparam as *const RECT);
@@ -501,38 +538,48 @@ unsafe fn show_overlay_context_menu(hwnd: HWND) {
     }
 }
 
-/// Double-buffered, crisp GDI rendering of the modern transparent HUD overlay
+/// Renders a solid FluxFetch-themed overlay with only telemetry collected from Steam streams.
 unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
     let mut client_rect: RECT = std::mem::zeroed();
     GetClientRect(hwnd, &mut client_rect);
     let width = client_rect.right - client_rect.left;
     let height = client_rect.bottom - client_rect.top;
-
     if width <= 0 || height <= 0 {
         return;
     }
 
     let pad = ctx.scale(BASE_PADDING);
     let header_h = ctx.scale(BASE_HEADER_HEIGHT);
+    let summary_h = ctx.scale(BASE_SUMMARY_HEIGHT);
     let row_h = ctx.scale(BASE_ROW_HEIGHT);
     let radius = ctx.scale(BASE_CORNER_RADIUS);
+    let states = ctx.controller.load_balancer.snapshot_states();
+    let steam_running = ctx.controller.interceptor.is_steam_process_running();
+    let steam_downloading = steam_running && ctx.controller.load_balancer.is_steam_downloading();
+    let total_download = if steam_downloading {
+        ctx.controller.load_balancer.total_download_mbps()
+    } else {
+        0.0
+    };
 
-    // 1. Offscreen memory DC for zero-flicker double buffering
     let mem_dc = CreateCompatibleDC(hdc);
     let mem_bmp = CreateCompatibleBitmap(hdc, width, height);
     let old_bmp = SelectObject(mem_dc, mem_bmp as *mut _);
-
     SetBkMode(mem_dc, TRANSPARENT as i32);
 
-    // 2. FluxFetch dark surface and border colors.
-    let bg_color = rgb(23, 25, 37); // FluxFetch #171925
-    let border_color = rgb(52, 54, 74); // FluxFetch #34364A
-    let bg_brush = CreateSolidBrush(bg_color);
-    FillRect(mem_dc, &client_rect, bg_brush as *mut _);
-    DeleteObject(bg_brush as *mut _);
+    // Opaque surfaces match FluxFetch's card and window colors.
+    let surface = rgb(23, 25, 37);
+    let card = rgb(32, 34, 49);
+    let border = rgb(52, 54, 74);
+    let muted = rgb(150, 155, 183);
+    let foreground = rgb(240, 240, 250);
+    let teal = rgb(86, 216, 189);
+    let purple = rgb(169, 154, 255);
+    let surface_brush = CreateSolidBrush(surface);
+    FillRect(mem_dc, &client_rect, surface_brush as *mut _);
+    DeleteObject(surface_brush as *mut _);
 
-    // Crisp 1px perimeter border (Slate 700)
-    let border_pen = CreatePen(PS_SOLID, 1, border_color);
+    let border_pen = CreatePen(PS_SOLID, 1, border);
     let null_brush = GetStockObject(NULL_BRUSH);
     let old_pen = SelectObject(mem_dc, border_pen as *mut _);
     let old_brush = SelectObject(mem_dc, null_brush);
@@ -541,282 +588,321 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
     SelectObject(mem_dc, old_brush);
     DeleteObject(border_pen as *mut _);
 
-    // 3. Header Section
-    let lb = &ctx.controller.load_balancer;
-    let is_active = lb.is_bonding_enabled();
-    let total_dl = lb.total_download_mbps();
-    let total_ul = lb.total_upload_mbps();
-
-    // App title keeps the feature visibly connected to FluxFetch.
-    SelectObject(mem_dc, ctx.font_title as *mut _);
-    SetTextColor(mem_dc, rgb(240, 240, 250));
-    let mut title_rect = RECT {
-        left: pad + ctx.scale(4),
-        top: pad + ctx.scale(2),
-        right: width - ctx.scale(95),
-        bottom: pad + ctx.scale(24),
-    };
-    let title_text = to_wide("FluxFetch · OmniLink");
-    DrawTextW(
+    // Brand and Steam-only status.
+    draw_overlay_text(
         mem_dc,
-        title_text.as_ptr(),
-        -1,
-        &mut title_rect,
-        DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX,
+        ctx.font_title,
+        foreground,
+        "FluxFetch  ·  OmniLink",
+        RECT {
+            left: pad,
+            top: pad,
+            right: width - ctx.scale(134),
+            bottom: pad + header_h,
+        },
+        DT_LEFT,
     );
 
-    // Status Pill Badge (Rounded pill container with colored border and background)
-    let (badge_text, badge_fg, badge_bg, badge_border) = if is_active {
-        (
-            "● ACTIVE",
-            rgb(86, 216, 189),
-            rgb(32, 59, 59),
-            rgb(53, 99, 92),
-        )
+    let (status, status_fg, status_bg, status_border) = if !steam_running {
+        ("STEAM NOT RUNNING", muted, rgb(41, 43, 62), rgb(68, 71, 93))
+    } else if steam_downloading {
+        ("STEAM DOWNLOADING", teal, rgb(32, 59, 59), rgb(53, 99, 92))
     } else {
-        (
-            "● PAUSED",
-            rgb(150, 155, 183),
-            rgb(41, 43, 62),
-            rgb(68, 71, 93),
-        )
+        ("STEAM RUNNING", purple, rgb(43, 39, 70), rgb(82, 70, 132))
     };
-
     let badge_rect = RECT {
-        left: width - ctx.scale(92),
-        top: pad + ctx.scale(3),
-        right: width - pad - ctx.scale(2),
-        bottom: pad + ctx.scale(23),
-    };
-    let pill_brush = CreateSolidBrush(badge_bg);
-    let pill_pen = CreatePen(PS_SOLID, 1, badge_border);
-    let old_b = SelectObject(mem_dc, pill_brush as *mut _);
-    let old_p = SelectObject(mem_dc, pill_pen as *mut _);
-    RoundRect(
-        mem_dc,
-        badge_rect.left,
-        badge_rect.top,
-        badge_rect.right,
-        badge_rect.bottom,
-        ctx.scale(10),
-        ctx.scale(10),
-    );
-    SelectObject(mem_dc, old_b);
-    SelectObject(mem_dc, old_p);
-    DeleteObject(pill_brush as *mut _);
-    DeleteObject(pill_pen as *mut _);
-
-    SelectObject(mem_dc, ctx.font_badge as *mut _);
-    SetTextColor(mem_dc, badge_fg);
-    let mut badge_text_rect = badge_rect;
-    let badge_wide = to_wide(badge_text);
-    DrawTextW(
-        mem_dc,
-        badge_wide.as_ptr(),
-        -1,
-        &mut badge_text_rect,
-        DT_CENTER | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX,
-    );
-
-    // TOTAL Section
-    SelectObject(mem_dc, ctx.font_small as *mut _);
-    SetTextColor(mem_dc, rgb(150, 155, 183));
-    let mut total_label_rect = RECT {
-        left: pad + ctx.scale(4),
-        top: pad + ctx.scale(28),
-        right: pad + ctx.scale(70),
-        bottom: pad + ctx.scale(46),
-    };
-    let total_label_wide = to_wide("TOTAL");
-    DrawTextW(
-        mem_dc,
-        total_label_wide.as_ptr(),
-        -1,
-        &mut total_label_rect,
-        DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX,
-    );
-
-    // Total speeds use FluxFetch's teal download and amber upload accents.
-    let dl_formatted = format_speed(total_dl);
-    let ul_formatted = format_speed(total_ul);
-    let total_text = format!("↓ {}   ↑ {}", dl_formatted, ul_formatted);
-    let total_wide = to_wide(&total_text);
-
-    SelectObject(mem_dc, ctx.font_bold as *mut _);
-    SetTextColor(mem_dc, rgb(169, 154, 255));
-    let mut total_rect = RECT {
-        left: pad + ctx.scale(60),
-        top: pad + ctx.scale(28),
-        right: width - pad - ctx.scale(4),
-        bottom: pad + ctx.scale(46),
-    };
-    DrawTextW(
-        mem_dc,
-        total_wide.as_ptr(),
-        -1,
-        &mut total_rect,
-        DT_RIGHT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX,
-    );
-
-    // Divider Line
-    let div_brush = CreateSolidBrush(rgb(52, 54, 74));
-    let div_rect = RECT {
-        left: pad,
-        top: header_h - ctx.scale(2),
+        left: width - pad - ctx.scale(126),
+        top: pad,
         right: width - pad,
-        bottom: header_h - ctx.scale(1),
+        bottom: pad + ctx.scale(22),
     };
-    FillRect(mem_dc, &div_rect, div_brush as *mut _);
-    DeleteObject(div_brush as *mut _);
+    draw_overlay_pill(
+        mem_dc,
+        badge_rect,
+        status,
+        status_fg,
+        status_bg,
+        status_border,
+        ctx,
+    );
 
-    // 4. Per Adapter Cards
-    let states = lb.snapshot_states();
-    let mut cur_y = header_h + ctx.scale(6);
+    // Prominent Steam download metric.
+    let summary_top = pad + header_h;
+    let summary_rect = RECT {
+        left: pad,
+        top: summary_top,
+        right: width - pad,
+        bottom: summary_top + summary_h,
+    };
+    draw_overlay_card(mem_dc, summary_rect, card, border, ctx.scale(12));
+    let accent_rect = RECT {
+        left: summary_rect.left + ctx.scale(1),
+        top: summary_rect.top + ctx.scale(9),
+        right: summary_rect.left + ctx.scale(4),
+        bottom: summary_rect.bottom - ctx.scale(9),
+    };
+    let accent_brush = CreateSolidBrush(if steam_downloading { teal } else { purple });
+    FillRect(mem_dc, &accent_rect, accent_brush as *mut _);
+    DeleteObject(accent_brush as *mut _);
+    draw_overlay_text(
+        mem_dc,
+        ctx.font_small,
+        muted,
+        "STEAM DOWNLOAD SPEED",
+        RECT {
+            left: summary_rect.left + ctx.scale(13),
+            top: summary_rect.top + ctx.scale(5),
+            right: summary_rect.right - ctx.scale(12),
+            bottom: summary_rect.top + ctx.scale(20),
+        },
+        DT_LEFT,
+    );
+    draw_overlay_text(
+        mem_dc,
+        ctx.font_metric,
+        if steam_downloading { teal } else { foreground },
+        &format_speed(total_download),
+        RECT {
+            left: summary_rect.left + ctx.scale(13),
+            top: summary_rect.top + ctx.scale(20),
+            right: summary_rect.right - ctx.scale(12),
+            bottom: summary_rect.bottom - ctx.scale(3),
+        },
+        DT_LEFT,
+    );
 
-    for state in states {
-        let is_enabled = state.enabled.load(Ordering::Relaxed);
-        let dl_mbps = state.download_mbps();
-        let ul_mbps = state.upload_mbps();
-        let name = &state.adapter.friendly_name;
-        let ip = state.adapter.ipv4.to_string();
-
-        // Modern rounded FluxFetch card surface.
-        let card_bg = rgb(32, 34, 49); // FluxFetch #202231
-        let card_border = rgb(52, 54, 74); // FluxFetch #34364A
-        let brush = CreateSolidBrush(card_bg);
-        let pen = CreatePen(PS_SOLID, 1, card_border);
-        let old_b = SelectObject(mem_dc, brush as *mut _);
-        let old_p = SelectObject(mem_dc, pen as *mut _);
-        RoundRect(
+    if ctx.expanded {
+        let details_top = summary_rect.bottom;
+        let active_connections: usize = states
+            .iter()
+            .map(|state| state.active_connections.load(Ordering::Relaxed))
+            .sum();
+        draw_overlay_text(
             mem_dc,
-            pad,
-            cur_y,
-            width - pad,
-            cur_y + row_h - ctx.scale(8),
-            ctx.scale(12),
-            ctx.scale(12),
+            ctx.font_small,
+            muted,
+            &format!("STEAM CONNECTIONS  ·  {} ACTIVE", active_connections),
+            RECT {
+                left: pad + ctx.scale(2),
+                top: details_top,
+                right: width - pad - ctx.scale(112),
+                bottom: details_top + ctx.scale(BASE_DETAILS_HEADER_HEIGHT),
+            },
+            DT_LEFT,
         );
-        SelectObject(mem_dc, old_b);
-        SelectObject(mem_dc, old_p);
-        DeleteObject(brush as *mut _);
-        DeleteObject(pen as *mut _);
 
-        // Circular Status Indicator Dot
-        let dot_color = if is_enabled {
-            rgb(86, 216, 189) // FluxFetch teal
+        let routing_text = if ctx.controller.load_balancer.is_bonding_enabled() {
+            "BONDING ON"
         } else {
-            rgb(86, 90, 115) // FluxFetch muted icon
+            "BONDING PAUSED"
         };
-        let dot_brush = CreateSolidBrush(dot_color);
-        let null_pen = GetStockObject(NULL_PEN);
-        let old_b = SelectObject(mem_dc, dot_brush as *mut _);
-        let old_p = SelectObject(mem_dc, null_pen);
-        let dot_x = pad + ctx.scale(10);
-        let dot_y = cur_y + ctx.scale(13);
-        let dot_size = ctx.scale(8);
-        RoundRect(
+        draw_overlay_text(
             mem_dc,
-            dot_x,
-            dot_y,
-            dot_x + dot_size,
-            dot_y + dot_size,
-            dot_size,
-            dot_size,
-        );
-        SelectObject(mem_dc, old_b);
-        SelectObject(mem_dc, old_p);
-        DeleteObject(dot_brush as *mut _);
-
-        // Adapter Name
-        SelectObject(mem_dc, ctx.font_bold as *mut _);
-        SetTextColor(mem_dc, rgb(240, 240, 250));
-        let mut name_rect = RECT {
-            left: pad + ctx.scale(24),
-            top: cur_y + ctx.scale(6),
-            right: width - ctx.scale(145),
-            bottom: cur_y + ctx.scale(24),
-        };
-        let name_wide = to_wide(name);
-        DrawTextW(
-            mem_dc,
-            name_wide.as_ptr(),
-            -1,
-            &mut name_rect,
-            DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX,
+            ctx.font_small,
+            muted,
+            routing_text,
+            RECT {
+                left: width - pad - ctx.scale(110),
+                top: details_top,
+                right: width - pad - ctx.scale(2),
+                bottom: details_top + ctx.scale(BASE_DETAILS_HEADER_HEIGHT),
+            },
+            DT_RIGHT,
         );
 
-        // Subtitle: Local IPv4 & Type
-        SelectObject(mem_dc, ctx.font_small as *mut _);
-        SetTextColor(mem_dc, rgb(150, 155, 183));
-        let type_tag = if state.adapter.is_wireless {
-            "Wi-Fi"
-        } else {
-            "LAN"
-        };
-        let subtitle = format!("{} • {}", ip, type_tag);
-        let mut ip_rect = RECT {
-            left: pad + ctx.scale(24),
-            top: cur_y + ctx.scale(26),
-            right: width - ctx.scale(145),
-            bottom: cur_y + ctx.scale(42),
-        };
-        let ip_wide = to_wide(&subtitle);
-        DrawTextW(
-            mem_dc,
-            ip_wide.as_ptr(),
-            -1,
-            &mut ip_rect,
-            DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX,
-        );
+        let mut row_top = details_top + ctx.scale(BASE_DETAILS_HEADER_HEIGHT);
+        for state in &states {
+            let row = RECT {
+                left: pad,
+                top: row_top,
+                right: width - pad,
+                bottom: row_top + row_h,
+            };
+            draw_overlay_card(mem_dc, row, card, border, ctx.scale(9));
 
-        // Download speed uses the FluxFetch Wi-Fi teal accent.
-        SelectObject(mem_dc, ctx.font_bold as *mut _);
-        SetTextColor(mem_dc, rgb(86, 216, 189));
-        let dl_str = format!("↓ {}", format_speed(dl_mbps));
-        let dl_wide = to_wide(&dl_str);
-        let mut dl_rect = RECT {
-            left: width - ctx.scale(145),
-            top: cur_y + ctx.scale(6),
-            right: width - pad - ctx.scale(10),
-            bottom: cur_y + ctx.scale(24),
-        };
-        DrawTextW(
-            mem_dc,
-            dl_wide.as_ptr(),
-            -1,
-            &mut dl_rect,
-            DT_RIGHT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX,
-        );
+            let dot_color = if state.enabled.load(Ordering::Relaxed) {
+                purple
+            } else {
+                muted
+            };
+            let dot_brush = CreateSolidBrush(dot_color);
+            let dot_x = row.left + ctx.scale(12);
+            let dot_y = row.top + (row_h - ctx.scale(7)) / 2;
+            // Fill the small marker with a solid brush, then restore the previous GDI brush.
+            let old_dot_brush = SelectObject(mem_dc, dot_brush as *mut _);
+            windows_sys::Win32::Graphics::Gdi::Ellipse(
+                mem_dc,
+                dot_x,
+                dot_y,
+                dot_x + ctx.scale(7),
+                dot_y + ctx.scale(7),
+            );
+            SelectObject(mem_dc, old_dot_brush);
+            DeleteObject(dot_brush as *mut _);
 
-        // Upload speed uses the FluxFetch amber accent.
-        SelectObject(mem_dc, ctx.font_normal as *mut _);
-        SetTextColor(mem_dc, rgb(216, 164, 76));
-        let ul_str = format!("↑ {}", format_speed(ul_mbps));
-        let ul_wide = to_wide(&ul_str);
-        let mut ul_rect = RECT {
-            left: width - ctx.scale(145),
-            top: cur_y + ctx.scale(26),
-            right: width - pad - ctx.scale(10),
-            bottom: cur_y + ctx.scale(42),
-        };
-        DrawTextW(
-            mem_dc,
-            ul_wide.as_ptr(),
-            -1,
-            &mut ul_rect,
-            DT_RIGHT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX,
-        );
+            let enabled = state.enabled.load(Ordering::Relaxed);
+            let healthy = state.healthy.load(Ordering::Relaxed);
+            let connections = state.active_connections.load(Ordering::Relaxed);
+            let state_label = if !enabled {
+                "PAUSED"
+            } else if !healthy {
+                "DEGRADED"
+            } else {
+                "READY"
+            };
+            let text_left = row.left + ctx.scale(27);
+            let text_right = row.right - ctx.scale(10);
 
-        cur_y += row_h;
+            draw_overlay_text(
+                mem_dc,
+                ctx.font_normal,
+                foreground,
+                &state.adapter.friendly_name,
+                RECT {
+                    left: text_left,
+                    top: row.top + ctx.scale(1),
+                    right: row.right - ctx.scale(92),
+                    bottom: row.top + ctx.scale(21),
+                },
+                DT_LEFT,
+            );
+            draw_overlay_text(
+                mem_dc,
+                ctx.font_bold,
+                teal,
+                &format_speed(if steam_downloading {
+                    state.download_mbps()
+                } else {
+                    0.0
+                }),
+                RECT {
+                    left: row.right - ctx.scale(100),
+                    top: row.top + ctx.scale(1),
+                    right: text_right,
+                    bottom: row.top + ctx.scale(21),
+                },
+                DT_RIGHT,
+            );
+
+            draw_overlay_text(
+                mem_dc,
+                ctx.font_small,
+                muted,
+                &format!(
+                    "IP {}  ·  GW {}",
+                    state.adapter.ipv4, state.adapter.gateway_ipv4
+                ),
+                RECT {
+                    left: text_left,
+                    top: row.top + ctx.scale(22),
+                    right: text_right,
+                    bottom: row.top + ctx.scale(40),
+                },
+                DT_LEFT,
+            );
+
+            draw_overlay_text(
+                mem_dc,
+                ctx.font_small,
+                muted,
+                &format!(
+                    "LINK ↓ {}  ↑ {}  ·  {} conn  ·  {}",
+                    format_link_speed(state.adapter.rx_link_speed_bps),
+                    format_link_speed(state.adapter.tx_link_speed_bps),
+                    connections,
+                    state_label
+                ),
+                RECT {
+                    left: text_left,
+                    top: row.top + ctx.scale(41),
+                    right: text_right,
+                    bottom: row.bottom - ctx.scale(2),
+                },
+                DT_LEFT,
+            );
+            row_top += row_h;
+        }
     }
 
-    // 5. Blit offscreen buffer directly to the window DC
-    BitBlt(hdc, 0, 0, width, height, mem_dc, 0, 0, SRCCOPY);
+    // Clickable disclosure control at the bottom-right corner.
+    let footer_text = format!(
+        "{}  ·  {} NETWORKS",
+        if ctx.expanded { "LESS" } else { "MORE" },
+        states.len()
+    );
+    let footer_top = height - pad - ctx.scale(BASE_FOOTER_HEIGHT);
+    let footer_rect = RECT {
+        left: width - pad - ctx.scale(158),
+        top: footer_top,
+        right: width - pad,
+        bottom: height - pad,
+    };
+    draw_overlay_text(
+        mem_dc,
+        ctx.font_small,
+        purple,
+        &footer_text,
+        footer_rect,
+        DT_RIGHT,
+    );
 
-    // 6. Cleanup GDI resources
+    BitBlt(hdc, 0, 0, width, height, mem_dc, 0, 0, SRCCOPY);
     SelectObject(mem_dc, old_bmp);
     DeleteObject(mem_bmp as *mut _);
     DeleteDC(mem_dc);
+}
+
+unsafe fn draw_overlay_text(
+    dc: HDC,
+    font: HFONT,
+    color: u32,
+    text: &str,
+    mut rect: RECT,
+    align: u32,
+) {
+    SelectObject(dc, font as *mut _);
+    SetTextColor(dc, color);
+    let wide = to_wide(text);
+    DrawTextW(
+        dc,
+        wide.as_ptr(),
+        -1,
+        &mut rect,
+        align | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX,
+    );
+}
+
+unsafe fn draw_overlay_card(dc: HDC, rect: RECT, fill: u32, border: u32, radius: i32) {
+    let brush = CreateSolidBrush(fill);
+    let pen = CreatePen(PS_SOLID, 1, border);
+    let old_brush = SelectObject(dc, brush as *mut _);
+    let old_pen = SelectObject(dc, pen as *mut _);
+    RoundRect(
+        dc,
+        rect.left,
+        rect.top,
+        rect.right,
+        rect.bottom,
+        radius * 2,
+        radius * 2,
+    );
+    SelectObject(dc, old_brush);
+    SelectObject(dc, old_pen);
+    DeleteObject(brush as *mut _);
+    DeleteObject(pen as *mut _);
+}
+
+unsafe fn draw_overlay_pill(
+    dc: HDC,
+    rect: RECT,
+    text: &str,
+    foreground: u32,
+    background: u32,
+    border: u32,
+    ctx: &WindowThreadContext,
+) {
+    draw_overlay_card(dc, rect, background, border, ctx.scale(12));
+    draw_overlay_text(dc, ctx.font_badge, foreground, text, rect, DT_CENTER);
 }
 
 fn format_speed(mbps: f64) -> String {
@@ -824,6 +910,17 @@ fn format_speed(mbps: f64) -> String {
         format!("{:.2} Gbps", mbps / 1000.0)
     } else {
         format!("{:.1} Mbps", mbps)
+    }
+}
+
+fn format_link_speed(bits_per_second: u64) -> String {
+    let mbps = bits_per_second as f64 / 1_000_000.0;
+    if mbps >= 1000.0 {
+        format!("{:.1}G", mbps / 1000.0)
+    } else if mbps >= 1.0 {
+        format!("{:.0}M", mbps)
+    } else {
+        "—".to_string()
     }
 }
 

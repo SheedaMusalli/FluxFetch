@@ -213,13 +213,13 @@
   }
 }
 
-@keyframes plexo-dash {
+@keyframes fluxfetch-dash {
   to {
     stroke-dashoffset: -60;
   }
 }
 
-@keyframes plexo-glow {
+@keyframes fluxfetch-glow {
   0%,
   100% {
     opacity: 0.45;
@@ -229,7 +229,7 @@
   }
 }
 
-@keyframes plexo-popover-in {
+@keyframes fluxfetch-popover-in {
   from {
     opacity: 0;
     transform: translateY(-4px) scale(0.97);

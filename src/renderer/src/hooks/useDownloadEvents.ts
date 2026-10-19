@@ -12,11 +12,11 @@ export function useDownloadEvents(downloadId?: string | null): void {
     const handleUpdate = (update: Parameters<typeof receiveDownloadUpdate>[0]): void => {
       if (!downloadId || update.state.id === downloadId) receiveDownloadUpdate(update)
     }
-    const unsubscribe = window.plexo.onDownloadUpdated(handleUpdate)
+    const unsubscribe = window.fluxfetch.onDownloadUpdated(handleUpdate)
 
     const snapshotPromise = downloadId
-      ? window.plexo.getDownload(downloadId)
-      : window.plexo.getCurrentDownload()
+      ? window.fluxfetch.getDownload(downloadId)
+      : window.fluxfetch.getCurrentDownload()
     void snapshotPromise
       .then((snapshot) => {
         if (!disposed && snapshot) receiveDownloadUpdate(snapshot)

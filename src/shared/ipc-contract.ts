@@ -12,12 +12,15 @@ import type {
   StartDownloadRequest,
   UpdateInfo
 } from './types'
+import type { TorrentTransfer } from './torrent'
+import type { TransferSummary } from './transfers'
 
 /** The request/response half of the IPC surface (every IpcChannels entry except the
  * main->renderer push events, downloadUpdated and networksChanged) — one source of truth for
- * both plexoApi (preload) and registerIpcHandlers (main), so a signature drift between the two
+ * both fluxfetchApi (preload) and registerIpcHandlers (main), so a signature drift between the two
  * is a compile error instead of a runtime one. */
 export interface IpcContract {
+  getTransferSummary: { args: []; result: TransferSummary }
   listInterfaces: { args: []; result: NetworkInterfaceInfo[] }
   pingInterfaces: { args: []; result: Record<string, number | null> }
   measureNetworkSpeedSample: {
@@ -41,11 +44,14 @@ export interface IpcContract {
     result: number
   }
   openExternalUrl: { args: [url: string]; result: void }
-  saveTorrentClientConfig: {
-    args: [config: { baseUrl: string; username: string; password: string }]
-    result: void
-  }
-  testTorrentClient: { args: []; result: string }
+  addTorrent: { args: [source: string]; result: boolean }
+  chooseTorrentFile: { args: []; result: boolean }
+  listTorrents: { args: []; result: TorrentTransfer[] }
+  pauseTorrent: { args: [gid: string]; result: void }
+  resumeTorrent: { args: [gid: string]; result: void }
+  reannounceTorrent: { args: [gid: string]; result: void }
+  openTorrentFolder: { args: [gid: string]; result: void }
+  removeTorrent: { args: [gid: string, deleteFiles: boolean]; result: void }
   listSiteAuthOrigins: { args: []; result: string[] }
   saveSiteAuth: { args: [input: SiteAuthInput]; result: void }
   removeSiteAuth: { args: [origin: string]; result: void }

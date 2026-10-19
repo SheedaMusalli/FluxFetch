@@ -1,7 +1,7 @@
 ;(() => {
   if (chrome.extension.inIncognitoContext || window !== window.top) return
   const host = document.createElement('div')
-  host.id = 'plexo-youtube-tools'
+  host.id = 'fluxfetch-youtube-tools'
   host.style.cssText =
     'all:initial!important;position:fixed!important;z-index:2147483647!important;display:none;'
   const shadow = host.attachShadow({ mode: 'open' })

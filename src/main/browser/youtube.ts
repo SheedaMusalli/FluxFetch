@@ -161,7 +161,7 @@ export class YoutubeDownloads {
   private async removeAbandonedCookieFiles(): Promise<void> {
     const temp = app.getPath('temp')
     for (const name of await readdir(temp)) {
-      if (!name.startsWith('plexo-youtube-cookie-')) continue
+      if (!name.startsWith('fluxfetch-youtube-cookie-')) continue
       await rm(join(temp, name), { recursive: true, force: true })
     }
   }
@@ -205,7 +205,7 @@ export class YoutubeDownloads {
       const tools = await ensureMediaTools()
       if (cookies.length) {
         cookieDirectory = await mkdtemp(
-          join(app.getPath('temp'), `plexo-youtube-cookie-${randomUUID()}-`)
+          join(app.getPath('temp'), `fluxfetch-youtube-cookie-${randomUUID()}-`)
         )
         cookieFile = join(cookieDirectory, 'cookies.txt')
         const contents = cookieJar(cookies)
@@ -493,7 +493,7 @@ export class YoutubeDownloads {
       const temporaryDir = confirmation.temporaryDir || getDefaultTemporaryDir()
       await mkdir(destination, { recursive: true })
       await mkdir(temporaryDir, { recursive: true })
-      temporaryFolder = await mkdtemp(join(temporaryDir, `.plexo-youtube-${randomUUID()}-`))
+      temporaryFolder = await mkdtemp(join(temporaryDir, `.fluxfetch-youtube-${randomUUID()}-`))
       const names: string[] = []
       if (selected.video)
         names.push(

@@ -6,7 +6,18 @@ import eslintPluginReactHooks from 'eslint-plugin-react-hooks'
 import eslintPluginReactRefresh from 'eslint-plugin-react-refresh'
 
 export default defineConfig(
-  { ignores: ['**/node_modules', '**/dist', '**/out', '**/release', '**/.signing'] },
+  {
+    ignores: [
+      '**/node_modules',
+      '**/dist',
+      '**/out',
+      '**/release',
+      '**/.signing',
+      'artifacts/**',
+      'outputs/**',
+      'resources/torrent-engine/**'
+    ]
+  },
   tseslint.configs.recommended,
   eslintPluginReact.configs.flat.recommended,
   eslintPluginReact.configs.flat['jsx-runtime'],
@@ -43,13 +54,17 @@ export default defineConfig(
       'e2e/page-host/*.cjs',
       'scripts/**/*.mjs',
       'scripts/**/*.cjs',
-      'extension/**/*.js'
+      'extension/**/*.js',
+      'extension-firefox/**/*.js'
     ],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-require-imports': 'off'
     }
   },
-  { files: ['extension/**/*.js'], languageOptions: { globals: { chrome: 'readonly' } } },
+  {
+    files: ['extension/**/*.js', 'extension-firefox/**/*.js'],
+    languageOptions: { globals: { chrome: 'readonly' } }
+  },
   eslintConfigPrettier
 )

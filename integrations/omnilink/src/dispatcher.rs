@@ -44,9 +44,13 @@ impl MeteredStream {
     }
 
     #[inline]
-    fn touch(&self, bytes: usize) {
+    fn touch(&self, bytes: usize, from_steam: bool) {
         if bytes > 0 {
-            self.adapter_state.record_bytes(bytes);
+            if from_steam {
+                self.adapter_state.record_upload_bytes(bytes);
+            } else {
+                self.adapter_state.record_download_bytes(bytes);
+            }
             let now_ms = self.epoch.elapsed().as_millis() as u64;
             self.last_activity_ms.store(now_ms, Ordering::Relaxed);
         }
@@ -71,7 +75,7 @@ impl AsyncRead for MeteredStream {
         let poll = Pin::new(&mut self.inner).poll_read(cx, buf);
         if let Poll::Ready(Ok(())) = &poll {
             let transferred = buf.filled().len().saturating_sub(before);
-            self.touch(transferred);
+            self.touch(transferred, false);
         }
         poll
     }
@@ -85,7 +89,7 @@ impl AsyncWrite for MeteredStream {
     ) -> Poll<io::Result<usize>> {
         let poll = Pin::new(&mut self.inner).poll_write(cx, buf);
         if let Poll::Ready(Ok(n)) = &poll {
-            self.touch(*n);
+            self.touch(*n, true);
         }
         poll
     }

@@ -1,5 +1,6 @@
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
 use crate::adapters::NetworkAdapter;
@@ -19,16 +20,18 @@ pub struct AdapterState {
     pub active_connections: AtomicUsize,
     /// Bytes transferred during the current sampling window
     window_bytes: AtomicU64,
+    /// Steam-to-client payload bytes during the current sampling window.
+    steam_download_window_bytes: AtomicU64,
+    /// Client-to-Steam payload bytes during the current sampling window.
+    steam_upload_window_bytes: AtomicU64,
+    /// Recent Steam download samples, used to smooth the UI rate over about five seconds.
+    steam_download_history: Mutex<VecDeque<(u64, u64)>>,
     /// EWMA-smoothed throughput in bits per second
     pub current_bps: AtomicU64,
-    /// Total hardware download speed in bits per second
+    /// Steam download speed measured on OmniLink's intercepted Steam streams.
     pub download_bps: AtomicU64,
-    /// Total hardware upload speed in bits per second
+    /// Steam upload speed measured on OmniLink's intercepted Steam streams.
     pub upload_bps: AtomicU64,
-    /// Last recorded raw hardware RX octets
-    last_hardware_rx: AtomicU64,
-    /// Last recorded raw hardware TX octets
-    last_hardware_tx: AtomicU64,
     /// Highest observed throughput (bps), seeded with a 50 Mbps slow-start probe floor
     pub peak_bps: AtomicU64,
     /// EWMA-smoothed TCP connect RTT in microseconds
@@ -39,6 +42,7 @@ pub struct AdapterState {
 
 const INITIAL_PROBE_BPS: u64 = 50_000_000; // 50 Mbps initial probe floor
 const MIN_HEADROOM_BPS: u64 = 5_000_000; // 5 Mbps minimum scheduling floor
+const STEAM_SPEED_HISTORY_SAMPLES: usize = 10;
 
 impl AdapterState {
     pub fn new(adapter: NetworkAdapter) -> Self {
@@ -48,11 +52,14 @@ impl AdapterState {
             healthy: AtomicBool::new(true),
             active_connections: AtomicUsize::new(0),
             window_bytes: AtomicU64::new(0),
+            steam_download_window_bytes: AtomicU64::new(0),
+            steam_upload_window_bytes: AtomicU64::new(0),
+            steam_download_history: Mutex::new(VecDeque::with_capacity(
+                STEAM_SPEED_HISTORY_SAMPLES,
+            )),
             current_bps: AtomicU64::new(0),
             download_bps: AtomicU64::new(0),
             upload_bps: AtomicU64::new(0),
-            last_hardware_rx: AtomicU64::new(0),
-            last_hardware_tx: AtomicU64::new(0),
             peak_bps: AtomicU64::new(INITIAL_PROBE_BPS),
             ewma_rtt_us: AtomicU64::new(35_000), // Default 35ms initial estimate
             consecutive_failures: AtomicUsize::new(0),
@@ -62,6 +69,33 @@ impl AdapterState {
     #[inline]
     pub fn record_bytes(&self, bytes: usize) {
         self.window_bytes.fetch_add(bytes as u64, Ordering::Relaxed);
+    }
+
+    #[inline]
+    pub fn record_download_bytes(&self, bytes: usize) {
+        self.record_bytes(bytes);
+        self.steam_download_window_bytes
+            .fetch_add(bytes as u64, Ordering::Relaxed);
+    }
+
+    #[inline]
+    pub fn record_upload_bytes(&self, bytes: usize) {
+        self.record_bytes(bytes);
+        self.steam_upload_window_bytes
+            .fetch_add(bytes as u64, Ordering::Relaxed);
+    }
+
+    fn record_steam_download_sample(&self, bytes: u64, elapsed_secs: f64) {
+        let elapsed_ms = (elapsed_secs * 1000.0).round().max(1.0) as u64;
+        let Ok(mut history) = self.steam_download_history.lock() else {
+            return;
+        };
+        history.push_back((bytes, elapsed_ms));
+        if history.len() > STEAM_SPEED_HISTORY_SAMPLES {
+            history.pop_front();
+        }
+        self.download_bps
+            .store(rolling_bps(&history), Ordering::Relaxed);
     }
 
     pub fn record_connect_success(&self, rtt: Duration) {
@@ -90,9 +124,7 @@ impl AdapterState {
 
     #[inline]
     pub fn download_mbps(&self) -> f64 {
-        let dl_bps = self.download_bps.load(Ordering::Relaxed);
-        let proxy_bps = self.current_bps.load(Ordering::Relaxed);
-        (dl_bps.max(proxy_bps) as f64) / 1_000_000.0
+        (self.download_bps.load(Ordering::Relaxed) as f64) / 1_000_000.0
     }
 
     #[inline]
@@ -127,6 +159,7 @@ pub struct LoadBalancer {
     mode: RwLock<SchedulingMode>,
     rr_counter: AtomicUsize,
     bonding_enabled: AtomicBool,
+    steam_downloading: AtomicBool,
 }
 
 impl LoadBalancer {
@@ -141,6 +174,7 @@ impl LoadBalancer {
             mode: RwLock::new(SchedulingMode::DynamicWeighted),
             rr_counter: AtomicUsize::new(0),
             bonding_enabled: AtomicBool::new(true),
+            steam_downloading: AtomicBool::new(false),
         });
 
         Self::spawn_telemetry_ticker(Arc::clone(&lb));
@@ -179,18 +213,35 @@ impl LoadBalancer {
     }
 
     /// Reconciles newly discovered or unplugged adapters without resetting metrics for existing NICs.
-    pub fn sync_adapters(&self, discovered: Vec<NetworkAdapter>) {
+    pub fn sync_adapters(&self, discovered: Vec<NetworkAdapter>) -> bool {
         let mut guard = self.states.write().unwrap();
         let mut updated = Vec::with_capacity(discovered.len());
+        let mut changed = guard.len() != discovered.len();
 
         for nic in discovered {
             if let Some(existing) = guard.iter().find(|s| s.adapter.if_index == nic.if_index) {
-                updated.push(Arc::clone(existing));
+                if existing.adapter == nic {
+                    updated.push(Arc::clone(existing));
+                } else {
+                    // Keep the user's enable/disable choice, but replace stale address and route
+                    // data so newly connected or changed networks use the current interface.
+                    changed = true;
+                    let refreshed = Arc::new(AdapterState::new(nic));
+                    refreshed
+                        .enabled
+                        .store(existing.enabled.load(Ordering::Relaxed), Ordering::Relaxed);
+                    updated.push(refreshed);
+                }
             } else {
+                changed = true;
                 updated.push(Arc::new(AdapterState::new(nic)));
             }
         }
-        *guard = updated;
+
+        if changed {
+            *guard = updated;
+        }
+        changed
     }
 
     pub fn snapshot_states(&self) -> Vec<Arc<AdapterState>> {
@@ -202,12 +253,20 @@ impl LoadBalancer {
     }
 
     pub fn total_download_mbps(&self) -> f64 {
+        if !self.is_steam_downloading() {
+            return 0.0;
+        }
         self.states
             .read()
             .unwrap()
             .iter()
             .map(|s| s.download_mbps())
             .sum()
+    }
+
+    /// True only while recent Steam-stream traffic resembles a sustained file transfer.
+    pub fn is_steam_downloading(&self) -> bool {
+        self.steam_downloading.load(Ordering::Relaxed)
     }
 
     pub fn total_upload_mbps(&self) -> f64 {
@@ -274,7 +333,6 @@ impl LoadBalancer {
                 let tick_interval = Duration::from_millis(500);
                 let mut last_tick = Instant::now();
                 let mut ticks: u64 = 0;
-
                 loop {
                     std::thread::sleep(tick_interval);
                     let now = Instant::now();
@@ -297,37 +355,18 @@ impl LoadBalancer {
 
                         state.current_bps.store(smoothed_bps, Ordering::Relaxed);
 
-                        // Poll real-time hardware download (RX) and upload (TX) octets
-                        if let Some((cur_rx, cur_tx)) =
-                            crate::adapters::get_adapter_octets(state.adapter.if_index)
-                        {
-                            let prev_rx = state.last_hardware_rx.swap(cur_rx, Ordering::Relaxed);
-                            let prev_tx = state.last_hardware_tx.swap(cur_tx, Ordering::Relaxed);
-
-                            if prev_rx > 0 && cur_rx >= prev_rx {
-                                let diff_rx = cur_rx - prev_rx;
-                                let instant_rx_bps = ((diff_rx as f64 * 8.0) / elapsed_secs) as u64;
-                                let old_rx = state.download_bps.load(Ordering::Relaxed);
-                                let smooth_rx = if instant_rx_bps > old_rx {
-                                    (old_rx * 2 + instant_rx_bps * 3) / 5
-                                } else {
-                                    (old_rx * 3 + instant_rx_bps * 2) / 5
-                                };
-                                state.download_bps.store(smooth_rx, Ordering::Relaxed);
-                            }
-
-                            if prev_tx > 0 && cur_tx >= prev_tx {
-                                let diff_tx = cur_tx - prev_tx;
-                                let instant_tx_bps = ((diff_tx as f64 * 8.0) / elapsed_secs) as u64;
-                                let old_tx = state.upload_bps.load(Ordering::Relaxed);
-                                let smooth_tx = if instant_tx_bps > old_tx {
-                                    (old_tx * 2 + instant_tx_bps * 3) / 5
-                                } else {
-                                    (old_tx * 3 + instant_tx_bps * 2) / 5
-                                };
-                                state.upload_bps.store(smooth_tx, Ordering::Relaxed);
-                            }
-                        }
+                        // This is payload metered only on sockets intercepted from steam.exe.
+                        // Store the current sample directly so all Steam rates read exactly zero
+                        // as soon as Steam sends no download payload in a sampling window.
+                        let steam_download_bytes =
+                            state.steam_download_window_bytes.swap(0, Ordering::Relaxed);
+                        let steam_upload_bytes =
+                            state.steam_upload_window_bytes.swap(0, Ordering::Relaxed);
+                        state.record_steam_download_sample(steam_download_bytes, elapsed_secs);
+                        state.upload_bps.store(
+                            ((steam_upload_bytes as f64 * 8.0) / elapsed_secs) as u64,
+                            Ordering::Relaxed,
+                        );
 
                         // Update peak ceiling with slow decay (0.5% per tick) to adapt to ISP congestion
                         let prev_peak = state.peak_bps.load(Ordering::Relaxed);
@@ -341,8 +380,98 @@ impl LoadBalancer {
                             state.healthy.store(true, Ordering::Relaxed);
                         }
                     }
+
+                    // Use Steam's own app-download state. Intercepted Steam traffic also includes
+                    // login, workshop, and background requests, so transfer volume alone must
+                    // never label an idle client as downloading a game.
+                    lb.steam_downloading.store(
+                        crate::steam_download_state::is_game_download_active(),
+                        Ordering::Relaxed,
+                    );
                 }
             })
             .expect("Failed to spawn telemetry thread");
+    }
+}
+
+fn rolling_bps(samples: &VecDeque<(u64, u64)>) -> u64 {
+    let total_bytes: u64 = samples.iter().map(|(bytes, _)| bytes).sum();
+    let total_ms: u64 = samples.iter().map(|(_, elapsed_ms)| elapsed_ms).sum();
+    if total_ms == 0 {
+        0
+    } else {
+        ((total_bytes as f64 * 8_000.0) / total_ms as f64) as u64
+    }
+}
+
+#[cfg(test)]
+mod download_activity_tests {
+    use super::*;
+
+    #[test]
+    fn speed_uses_a_rolling_window_to_suppress_single_sample_spikes() {
+        let steady = VecDeque::from([(100_000, 500); STEAM_SPEED_HISTORY_SAMPLES]);
+        let mut burst = VecDeque::from([(100_000, 500)]);
+        burst.extend([(0, 500); STEAM_SPEED_HISTORY_SAMPLES - 1]);
+
+        assert_eq!(rolling_bps(&steady), 1_600_000);
+        assert_eq!(rolling_bps(&burst), 160_000);
+    }
+}
+
+#[cfg(test)]
+mod adapter_sync_tests {
+    use super::*;
+    use std::net::Ipv4Addr;
+
+    fn adapter(if_index: u32, ipv4: Ipv4Addr) -> NetworkAdapter {
+        NetworkAdapter {
+            if_index,
+            adapter_name: format!("{{adapter-{if_index}}}"),
+            friendly_name: format!("Network {if_index}"),
+            description: "Test adapter".to_string(),
+            ipv4,
+            gateway_ipv4: Ipv4Addr::new(192, 168, 1, 1),
+            rx_link_speed_bps: 1_000_000_000,
+            tx_link_speed_bps: 1_000_000_000,
+            is_wireless: false,
+        }
+    }
+
+    #[test]
+    fn sync_adds_newly_connected_adapters_and_preserves_existing_state() {
+        let load_balancer = LoadBalancer::new(vec![adapter(4, Ipv4Addr::new(192, 168, 1, 20))]);
+        load_balancer.set_adapter_enabled(4, false);
+
+        assert!(load_balancer.sync_adapters(vec![
+            adapter(4, Ipv4Addr::new(192, 168, 1, 20)),
+            adapter(9, Ipv4Addr::new(192, 168, 2, 20)),
+        ]));
+
+        let states = load_balancer.snapshot_states();
+        assert_eq!(states.len(), 2);
+        assert!(!states[0].enabled.load(Ordering::Relaxed));
+        assert!(states[1].enabled.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn sync_refreshes_addresses_for_an_existing_interface_index() {
+        let load_balancer = LoadBalancer::new(vec![adapter(4, Ipv4Addr::new(192, 168, 1, 20))]);
+        load_balancer.set_adapter_enabled(4, false);
+
+        assert!(load_balancer.sync_adapters(vec![adapter(4, Ipv4Addr::new(192, 168, 1, 35),)]));
+
+        let states = load_balancer.snapshot_states();
+        assert_eq!(states[0].adapter.ipv4, Ipv4Addr::new(192, 168, 1, 35));
+        assert!(!states[0].enabled.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn unchanged_adapter_list_keeps_existing_state() {
+        let load_balancer = LoadBalancer::new(vec![adapter(4, Ipv4Addr::new(192, 168, 1, 20))]);
+        let original = load_balancer.snapshot_states()[0].clone();
+
+        assert!(!load_balancer.sync_adapters(vec![adapter(4, Ipv4Addr::new(192, 168, 1, 20),)]));
+        assert!(Arc::ptr_eq(&original, &load_balancer.snapshot_states()[0]));
     }
 }

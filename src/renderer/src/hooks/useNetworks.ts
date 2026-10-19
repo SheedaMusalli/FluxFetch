@@ -10,7 +10,7 @@ export function useNetworkEvents(): void {
   const receiveInterfaces = useAppStore((store) => store.receiveInterfaces)
 
   useEffect(() => {
-    const unsubscribe = window.plexo.onNetworksChanged(receiveInterfaces)
+    const unsubscribe = window.fluxfetch.onNetworksChanged(receiveInterfaces)
     void loadInterfaces()
     return unsubscribe
   }, [loadInterfaces, receiveInterfaces])

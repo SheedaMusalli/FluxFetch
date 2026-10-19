@@ -28,8 +28,8 @@ export function DownloadQueueDialog({
 
   useEffect(() => {
     let mounted = true
-    void window.plexo.getQueuedDownloads().then((items) => mounted && setQueue(items))
-    const unsubscribe = window.plexo.onDownloadQueueChanged(setQueue)
+    void window.fluxfetch.getQueuedDownloads().then((items) => mounted && setQueue(items))
+    const unsubscribe = window.fluxfetch.onDownloadQueueChanged(setQueue)
     return () => {
       mounted = false
       unsubscribe()
@@ -65,7 +65,7 @@ export function DownloadQueueDialog({
     }
     setBusy(true)
     try {
-      await window.plexo.queueDownloads(parsedUrls, destinationDir, scheduledAt)
+      await window.fluxfetch.queueDownloads(parsedUrls, destinationDir, scheduledAt)
       setUrls('')
       setScheduledFor('')
     } catch (reason) {
@@ -78,7 +78,7 @@ export function DownloadQueueDialog({
   const cancel = async (id: string): Promise<void> => {
     setError(null)
     try {
-      await window.plexo.cancelQueuedDownload(id)
+      await window.fluxfetch.cancelQueuedDownload(id)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not cancel this queued download.')
     }

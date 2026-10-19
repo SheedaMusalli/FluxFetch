@@ -17,7 +17,7 @@ interface Volume {
 async function smallVolume(megabytes: number): Promise<Volume | null> {
   try {
     if (process.platform === 'darwin') {
-      const name = `plexoe2e${process.pid}${Date.now() % 100000}`
+      const name = `fluxfetche2e${process.pid}${Date.now() % 100000}`
       const device = execFileSync('hdiutil', ['attach', '-nomount', `ram://${megabytes * 2048}`])
         .toString()
         .trim()
@@ -30,7 +30,7 @@ async function smallVolume(megabytes: number): Promise<Volume | null> {
       }
     }
     if (process.platform === 'linux') {
-      const path = await mkdtemp(join(tmpdir(), 'plexo-vol-'))
+      const path = await mkdtemp(join(tmpdir(), 'fluxfetch-vol-'))
       execFileSync('sudo', [
         '-n',
         'mount',
@@ -58,7 +58,7 @@ async function smallVolume(megabytes: number): Promise<Volume | null> {
 
 test.describe('disk space @disk', () => {
   test('a file bigger than the free space is refused before anything is written', async ({
-    plexo,
+    fluxfetch,
     serve,
     dirs
   }) => {
@@ -69,13 +69,13 @@ test.describe('disk space @disk', () => {
       await mkdir(dest)
       const origin = await serve({ size: 256 * BLOCK }) // 16 MB
       await expect(
-        plexo.start(origin.url(), origin.sha256, { destinationDir: dest })
+        fluxfetch.start(origin.url(), origin.sha256, { destinationDir: dest })
       ).rejects.toThrow(/Not enough disk space/)
       expect(await readdir(dest)).toEqual([])
       const downloads = join(dirs.userData, 'downloads')
       expect(existsSync(downloads) ? await readdir(downloads) : []).toEqual([])
     } finally {
-      await plexo.quit()
+      await fluxfetch.quit()
       await volume!.dispose()
     }
   })
@@ -110,22 +110,22 @@ test.describe('destination folder problems @smoke', () => {
   // Also tests a destination write error: the staging file cannot be opened, and cleanup must
   // surface that instead of waiting forever for a 'drain' that never comes.
   test('destination folder deleted mid-download → error, nothing left', async ({
-    plexo,
+    fluxfetch,
     serve,
     dirs
   }) => {
     const origin = await serve({ size: 24 * BLOCK })
     const reached = origin.hold(10 * BLOCK)
-    await plexo.start(origin.url(), origin.sha256)
+    await fluxfetch.start(origin.url(), origin.sha256)
     await reached
     await rm(dirs.dest, { recursive: true, force: true })
     origin.release()
-    const state = await plexo.waitForStatus(['completed', 'error'])
+    const state = await fluxfetch.waitForStatus(['completed', 'error'])
     expect(state.status).toBe('error')
   })
 
   test('read-only destination folder → refused, and nothing left in userData', async ({
-    plexo,
+    fluxfetch,
     serve,
     dirs
   }) => {
@@ -133,7 +133,9 @@ test.describe('destination folder problems @smoke', () => {
     const origin = await serve({ size: 4 * BLOCK })
     await chmod(dirs.dest, 0o555)
     try {
-      await expect(plexo.start(origin.url(), origin.sha256)).rejects.toThrow(/EACCES|permission/i)
+      await expect(fluxfetch.start(origin.url(), origin.sha256)).rejects.toThrow(
+        /EACCES|permission/i
+      )
       const downloads = join(dirs.userData, 'downloads')
       expect(
         existsSync(downloads) ? await readdir(downloads) : [],

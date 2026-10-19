@@ -17,13 +17,14 @@ export function DownloadConfirmationDialog(): React.JSX.Element {
   const [temporaryDir, setTemporaryDir] = useState('')
   const [error, setError] = useState<string | null>(null)
   const resolving = useRef(false)
+  const isTorrent = /^(?:BitTorrent|Torrent) ·/i.test(request?.details ?? '')
 
   const respond = useCallback(
     async (accepted: boolean): Promise<void> => {
       if (!request || resolving.current) return
       resolving.current = true
       try {
-        await window.plexo.respondDownloadConfirmation(
+        await window.fluxfetch.respondDownloadConfirmation(
           request.requestId,
           accepted ? { accepted, destinationDir, temporaryDir } : { accepted }
         )
@@ -43,7 +44,7 @@ export function DownloadConfirmationDialog(): React.JSX.Element {
   const chooseFolder = async (kind: 'destination' | 'temporary'): Promise<void> => {
     const current = kind === 'destination' ? destinationDir : temporaryDir
     try {
-      const chosen = await window.plexo.chooseDestinationFolder(current)
+      const chosen = await window.fluxfetch.chooseDestinationFolder(current)
       if (!chosen) return
       if (kind === 'destination') setDestinationDir(chosen)
       else setTemporaryDir(chosen)
@@ -55,7 +56,7 @@ export function DownloadConfirmationDialog(): React.JSX.Element {
 
   useEffect(
     () =>
-      window.plexo.onDownloadConfirmation((next) => {
+      window.fluxfetch.onDownloadConfirmation((next) => {
         resolving.current = false
         setError(null)
         setRequest(next)
@@ -74,11 +75,15 @@ export function DownloadConfirmationDialog(): React.JSX.Element {
         <DialogHeader className="gap-2 p-5 pb-4">
           <div className="flex items-center gap-2 font-mono text-[9px] tracking-[0.16em] text-muted-foreground uppercase">
             <ShieldCheck className="size-3.5 text-primary" />
-            FluxFetch download
+            FluxFetch {isTorrent ? 'torrent' : 'download'}
           </div>
-          <DialogTitle className="pr-5 text-base">Download this file?</DialogTitle>
+          <DialogTitle className="pr-5 text-base">
+            {isTorrent ? 'Add this torrent?' : 'Download this file?'}
+          </DialogTitle>
           <DialogDescription>
-            Review the file before FluxFetch starts transferring it.
+            {isTorrent
+              ? 'Choose where to save the torrent contents before FluxFetch starts.'
+              : 'Review the file before FluxFetch starts transferring it.'}
           </DialogDescription>
         </DialogHeader>
         <div className="mx-5 mb-5 min-w-0 rounded-lg border border-border bg-background/60 p-3">
@@ -91,7 +96,9 @@ export function DownloadConfirmationDialog(): React.JSX.Element {
         </div>
         <div className="mx-5 mb-4 grid min-w-0 gap-3">
           <div className="rounded-lg border border-border bg-background/40 p-3">
-            <div className="mb-1 text-xs font-medium">Save file to</div>
+            <div className="mb-1 text-xs font-medium">
+              {isTorrent ? 'Save files to' : 'Save file to'}
+            </div>
             <div className="mb-2 break-all font-mono text-[10px] leading-relaxed text-muted-foreground">
               {destinationDir}
             </div>
@@ -104,22 +111,24 @@ export function DownloadConfirmationDialog(): React.JSX.Element {
               <FolderOpen data-icon="inline-start" /> Change file location
             </Button>
           </div>
-          <div className="rounded-lg border border-border bg-background/40 p-3">
-            <div className="mb-1 text-xs font-medium">Temporary download data</div>
-            <div className="mb-2 break-all font-mono text-[10px] leading-relaxed text-muted-foreground">
-              Partial download data is kept here until the file is complete.
-              <br />
-              {temporaryDir}
+          {!isTorrent && (
+            <div className="rounded-lg border border-border bg-background/40 p-3">
+              <div className="mb-1 text-xs font-medium">Temporary download data</div>
+              <div className="mb-2 break-all font-mono text-[10px] leading-relaxed text-muted-foreground">
+                Partial download data is kept here until the file is complete.
+                <br />
+                {temporaryDir}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void chooseFolder('temporary')}
+              >
+                <FolderOpen data-icon="inline-start" /> Change temp folder
+              </Button>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => void chooseFolder('temporary')}
-            >
-              <FolderOpen data-icon="inline-start" /> Change temp folder
-            </Button>
-          </div>
+          )}
         </div>
         {error && (
           <div role="alert" className="mx-5 mb-4 text-xs text-destructive">
@@ -136,7 +145,7 @@ export function DownloadConfirmationDialog(): React.JSX.Element {
             Cancel
           </Button>
           <Button type="button" disabled={!request} onClick={() => void respond(true)}>
-            <Download data-icon="inline-start" /> Download
+            <Download data-icon="inline-start" /> {isTorrent ? 'Add torrent' : 'Download'}
           </Button>
         </DialogFooter>
       </DialogContent>

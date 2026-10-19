@@ -41,7 +41,7 @@ export async function measureNetworkSpeedSample(
     options.endpoint ?? 'https://speed.cloudflare.com'
   )
   url.searchParams.set('bytes', String(bytes))
-  url.searchParams.set('plexo', `${Date.now()}-${Math.random().toString(36).slice(2)}`)
+  url.searchParams.set('fluxfetch', `${Date.now()}-${Math.random().toString(36).slice(2)}`)
   const body = direction === 'upload' && bytes > 0 ? Buffer.alloc(bytes) : undefined
   const startedAt = Date.now()
 

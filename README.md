@@ -4,80 +4,169 @@
 
 # FluxFetch
 
-**Fast, resumable downloads across the connections you choose.**
+**Your downloads. Your connections. One place to manage them.**
 
-[Windows 10/11](#installation) · [Features](#features) · [Build from source](#build-from-source)
+Windows downloads · Built-in torrents · OmniLink for Steam · Browser integration
+
+[![Latest release](https://img.shields.io/github/v/release/SheedaMusalli/FluxFetch?label=latest%20release)](https://github.com/SheedaMusalli/FluxFetch/releases/latest)
+[![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011%20x64-9e8cff)](#install-fluxfetch)
+[![License](https://img.shields.io/badge/license-MIT-56d9c0)](LICENSE)
+
+[Download](https://github.com/SheedaMusalli/FluxFetch/releases/latest) · [Browser setup](docs/BROWSER-SETUP.md) · [What's new in v2](docs/releases/v2.0.0.md) · [Report an issue](https://github.com/SheedaMusalli/FluxFetch/issues)
 
 </div>
 
-FluxFetch can split supported files into parallel streams, route them across selected network interfaces, resume interrupted downloads, and keep everything organized in a searchable library.
-
-[![Latest release](https://img.shields.io/github/v/release/SheedaMusalli/FluxFetch?label=latest%20release)](https://github.com/SheedaMusalli/FluxFetch/releases/latest) [![Windows](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-3678F6)](#installation) [![License](https://img.shields.io/badge/license-MIT-58A6FF)](LICENSE)
+FluxFetch is a Windows download manager with parallel HTTP/HTTPS transfers, a native libtorrent engine, and an optional Steam helper that can use independent network connections together. Manage downloads and torrents, see live progress from the library or system tray, and send links straight from your browser.
 
 ## Features
 
-- **Parallel and multi-network downloads** — split supported HTTP/HTTPS downloads into streams and route them through the network adapters you choose. Speed depends on the source server, connection, and network setup.
-- **Reliable transfers** — resume supported interrupted downloads, retry failed parts, and see per-network progress, throughput, average speed, and peak speed.
-- **Browser handoff** — use the Chrome or Edge extension to send links to FluxFetch, or let clipboard monitoring offer a download prompt when you copy a URL.
-- **Download library** — search and filter history, open completed files, view their location and properties, refresh expired links from the source page, and batch-remove history entries.
-- **Queues and scheduling** — add batches of URLs and optionally schedule when a queue starts.
-- **Useful tools** — measure internet speed, inspect and selectively extract ZIP/RAR archives, apply download speed limits, configure proxies and authentication, and send magnet or `.torrent` links to a local qBittorrent Web UI.
+| Feature                | What you can do                                                                                                                                                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Parallel downloads     | Split supported files across connections, select network adapters, resume interrupted transfers, and retry failed parts.                                                             |
+| Built-in torrents      | Download and seed magnets and `.torrent` files directly, without another torrent client or an installed Python runtime.                                                              |
+| Live progress          | Watch normal and torrent status, percentage, speed and progress in the library footer. Hover over the system tray icon for combined progress and speed.                              |
+| Torrent details        | Inspect files, per-file progress, trackers and errors, connected peers, ETA, uploads, ratio, DHT nodes, listening port and full content location. Open the download folder directly. |
+| OmniLink for Steam     | Route eligible Steam connections through selected adapters, automatically detect newly connected networks, and view Steam activity in a compact, solid dark overlay.                 |
+| Browser integration    | Capture supported downloads, send links through the context menu, find direct media, and access supported public-YouTube downloads. Chromium and Firefox packages are included.      |
+| Cleaner capture        | Automatic capture leaves ordinary images and known downloads smaller than 128 KiB in the browser. Explicit actions and torrent links are handled separately.                         |
+| Download library       | Search history, open files/folders, inspect properties, refresh expired links and batch-remove history. Filter Completed, In progress, Paused, Cancelled and Failed downloads.       |
+| File removal           | Remove history while keeping files, or explicitly confirm disk deletion. Torrents have separate keep-files and delete-files actions.                                                 |
+| Queues and scheduling  | Add batches of URLs, manage waiting downloads and schedule queue starts.                                                                                                             |
+| Network tools          | Test Internet and combined-network speed, apply rate limits, configure HTTP/HTTPS/SOCKS proxies and save site authentication.                                                        |
+| Archive tools          | Preview ZIP/RAR contents and selectively extract files.                                                                                                                              |
+| Optional remote access | Manage supported actions through an authenticated HTTPS dashboard, disabled by default.                                                                                              |
+| Windows integration    | Clipboard download prompts, magnet and `.torrent` handling, system tray operation, and update checks against FluxFetch's GitHub releases.                                            |
 
-## OmniLink for Steam downloads
+## OmniLink for Steam
 
-**OmniLink is FluxFetch's optional multi-network Steam helper.** It attempts to route eligible Steam download connections across the adapters you select, so independent Internet connections can contribute bandwidth at the same time.
+Click **Run OmniLink** beside **Speed test**, approve the Windows administrator prompt, then choose adapters from OmniLink's tray menu.
 
-For example, a desktop could use Ethernet through Router A, Wi-Fi through Router B, and an Android phone connected by USB tethering while the phone uses Router C's Wi-Fi—if that phone supports sharing its Wi-Fi uplink over USB. This setup can make more total Internet capacity available to eligible Steam transfers. Adapters connected to the same router or Internet line share that line; they do not create extra bandwidth.
+**Independent Internet connections are the key.** A desktop could use:
 
-OmniLink needs Windows administrator approval and a compatible network-driver setup. It **does not guarantee faster Steam downloads**: Steam's CDN and connection behavior, network routes, driver compatibility, and each connection's available capacity all affect the result. The helper's tray menu lets you choose adapters and pause bonding.
+| PC adapter            | Connection                                                                                                |
+| --------------------- | --------------------------------------------------------------------------------------------------------- |
+| Ethernet              | Router A's Internet line                                                                                  |
+| Wi-Fi                 | Router B's separate Internet line                                                                         |
+| Android USB tethering | Router C's separate Internet line through the phone's Wi-Fi, if the phone supports sharing Wi-Fi over USB |
+
+This makes more aggregate capacity available to eligible Steam transfers. Three routers sharing one upstream Internet line still share that line's capacity.
+
+The compact, opaque overlay shows Steam running/not running and download activity. Speed is based on Steam traffic and stays at zero when no game download is detected. Expand the arrow for connection counts, adapter throughput, IP addresses, gateways and link rates. Newly connected routable adapters and address changes are detected while the helper runs.
+
+Results depend on Steam's CDN, connection behavior, routing, bandwidth and compatible drivers. OmniLink can improve throughput but **does not guarantee a speed increase**. Its measurements may differ from Steam's display because sampling intervals and measured traffic differ.
+
+## Install FluxFetch
+
+1. Open [Latest release](https://github.com/SheedaMusalli/FluxFetch/releases/latest) and expand **Assets**.
+2. Download **`fluxfetch-2.0.0-setup.exe`**. GitHub's **Source code** ZIP is for developers, not installation.
+3. Run setup on **Windows 10/11 x64**, review the license, choose the available installation options and destination, then review and install.
+4. Existing users can choose **Update** to preserve settings/history, or **Fresh install** to reset this Windows account's settings, credentials and history while retaining downloaded files. Setup automatically closes the running app; finish important work first.
+5. Open **Settings** in FluxFetch and select your default download folder.
+6. Install the browser extension below if you want webpage capture. **Add URL**, clipboard prompts and **Torrents** also work without an extension.
+
+The installer includes the local browser helper. Each browser still needs its extension loaded separately. v2.0.0 is not distributed through browser stores, and its Windows installer is not publisher-signed. Release checksums are available in `SHA256SUMS.txt`.
+
+### Chromium: Chrome, Edge, Brave, Vivaldi, Opera and Opera GX
+
+Use **`FluxFetch-Chrome.zip`** for these browsers; it is the Chromium package despite its filename.
+
+1. Download it from the same release and **extract** it into a permanent folder, such as `Documents\FluxFetch Extension`.
+2. Open your browser's extension page:
+
+   | Browser                 | Page                                          |
+   | ----------------------- | --------------------------------------------- |
+   | Chrome                  | `chrome://extensions`                         |
+   | Edge                    | `edge://extensions`                           |
+   | Brave                   | `brave://extensions`                          |
+   | Vivaldi                 | `vivaldi://extensions`                        |
+   | Opera / Opera GX        | `opera://extensions`                          |
+   | Other Chromium browsers | Browser menu → Extensions → Manage extensions |
+
+3. Enable **Developer mode**, click **Load unpacked**, and select the folder directly containing **`manifest.json`**. Do not select the ZIP or its parent folder.
+4. Pin **FluxFetch Download Manager**, open its popup and confirm **Connected**. Restart the browser after desktop installation if necessary.
+5. Refresh open webpages. Download a supported file normally or right-click a direct link and choose **Download with FluxFetch**. The app asks before accepting it.
+
+Keep the extracted folder in place. Other Chromium browsers need compatible Manifest V3 and Native Messaging support; loading alone does not confirm desktop connectivity. Setup registers Chrome/Edge host locations, which compatible forks may also use. These steps do not imply every browser fork has been tested.
+
+The optional `FluxFetch-Chrome.crx` is a CRX3 package, **not a Chrome Web Store listing**. Use the ZIP steps where off-store CRX installation is restricted. See the [full browser guide](docs/BROWSER-SETUP.md) for updates and connection troubleshooting.
+
+### Firefox
+
+1. Download and extract **`FluxFetch-Firefox.zip`** from the same release. Use this package, not the Chromium ZIP.
+2. Open **`about:debugging#/runtime/this-firefox`**.
+3. Click **Load Temporary Add-on…** and select **`manifest.json`** inside the extracted Firefox folder.
+4. Open the extension popup, confirm **Connected**, and refresh webpages.
+5. Repeat temporary loading after Firefox restarts.
+
+**This release's Firefox package is unsigned and temporary.** Renaming the ZIP to `.xpi` does not make it permanently installable in standard Firefox. Persistent distribution requires Mozilla signing. See [Mozilla's instructions](https://extensionworkshop.com/documentation/develop/temporary-installation-in-firefox/) and the [FluxFetch browser guide](docs/BROWSER-SETUP.md).
+
+## Using torrents
+
+1. Click **Torrents**, paste a magnet/direct `.torrent` URL or choose **Open .torrent**, then confirm the destination.
+2. FluxFetch creates the content folder when metadata arrives. **Saving to** shows the actual content path; **Open download folder** takes you there. Files are written as data arrives.
+3. Expand **Torrent details** for Overview, Files, Trackers and Peers. **Find peers** requests fresh tracker/DHT discovery.
+4. Track progress in the main library footer and tray tooltip without keeping the torrent dialog open.
+5. Choose **Remove torrent (keep files)** to preserve data, or **Delete torrent and files** and confirm when you want disk data deleted too.
+
+Right-click a `.torrent` file and select **Open with → FluxFetch**, setting it as default if desired. Select FluxFetch when Windows asks which app should open magnet links. Windows controls the default-app choice.
+
+New and restored torrents use normal swarm piece selection, with DHT/PEX and supplied trackers for discovery. Sparse progress across files does not imply sequential mode. Speed depends on reachable peers, upload availability, your connection and rate limits. Older aria2 session records are not imported: re-add the original torrent with the **same destination** to verify and reuse files.
+
+## YouTube and direct media
+
+The extension adds controls for supported public YouTube videos and direct audio/video sources. Choose a format and confirm the job. Verified tools download on first use; FFmpeg is fetched when muxing is needed.
+
+DRM, live broadcasts, interactive challenges and some sign-in/region restrictions remain unsupported. General HLS/DASH, `blob:` URLs and POST-generated files are not ordinary direct-file capture. YouTube jobs do not persist across an app restart. See [Windows integration details](WINDOWS-SETUP.md).
 
 ## Screenshots
 
-### Download library and OmniLink
+![FluxFetch v2 library, status filters and Run OmniLink](docs/screenshots/fluxfetch-v2-library.png)
 
-![FluxFetch home screen with the Run OmniLink control](docs/screenshots/fluxfetch-omnilink.jpg)
+<details>
+<summary>Download setup, queues and speed tests</summary>
 
-The home screen keeps OmniLink next to Speed test. See [OmniLink for Steam downloads](#omnilink-for-steam-downloads) for how to connect separate networks and what affects results.
+![FluxFetch v2 torrent manager](docs/screenshots/fluxfetch-v2-torrents.png)
+![FluxFetch v2 queue and scheduling](docs/screenshots/fluxfetch-v2-queue.png)
+![FluxFetch v2 speed test](docs/screenshots/fluxfetch-v2-speed-test.png)
 
-### Download setup and network selection
+</details>
 
-![FluxFetch download setup](docs/screenshots/fluxfetch-setup.jpg)
+## Troubleshooting
 
-### Queue and scheduling
-
-![FluxFetch download queue](docs/screenshots/fluxfetch-queue.jpg)
-
-### Speed tests
-
-![FluxFetch internet speed test](docs/screenshots/fluxfetch-speed-test.jpg)
-
-## Installation
-
-1. Download **`fluxfetch-1.0.0-setup.exe`** from the [FluxFetch Releases page](https://github.com/SheedaMusalli/FluxFetch/releases) and run the installer.
-2. Download **`FluxFetch-Chrome.zip`** from that release and extract it to a permanent folder.
-3. In Chrome, open `chrome://extensions`; in Edge, open `edge://extensions`. Enable **Developer mode**, choose **Load unpacked**, and select the extracted extension folder containing `manifest.json`.
-4. Pin **FluxFetch Download Manager** in the browser. Confirm the extension shows **Connected**.
-5. Start downloads from a webpage, use **Download with FluxFetch** on a link, or paste a direct URL into the app.
-
-For torrent links, configure qBittorrent Web UI in FluxFetch settings first. FluxFetch hands magnet and torrent-file links to your local qBittorrent instance after confirmation; it does not include a BitTorrent engine.
+| Problem                         | What to check                                                                                                                                                                                              |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Extension disconnected          | Install the desktop app, reopen the browser and confirm the correct package/identity. Run setup in Update mode to repair the helper. See [browser troubleshooting](docs/BROWSER-SETUP.md#troubleshooting). |
+| Nothing captured                | Check capture toggle and site exclusions. Images, known small files, private sessions and unsupported requests may stay in the browser. Try an explicit direct-link action.                                |
+| Slow/waiting torrent            | Inspect Peers, Trackers, DHT count, rate limits and connectivity. A torrent needs reachable peers with the data.                                                                                           |
+| Can't find torrent files        | Read **Saving to** in Overview and use **Open download folder**. Magnets need metadata before file names are known.                                                                                        |
+| Files disappeared after removal | The trash action deletes disk data after confirmation. Use **Remove torrent (keep files)** to remove only the job.                                                                                         |
+| Upgrading                       | Install in Update mode, then replace/reload the extension. Preserve its manifest key and Firefox ID.                                                                                                       |
 
 ## Build from source
 
-Requirements: Windows 10/11 x64, Node.js 22.12+, npm, .NET SDK, Windows PowerShell, and the stable Rust MSVC toolchain. OmniLink uses the Rust MSVC toolchain and its bundled WinDivert runtime. Review [Windows build instructions](WINDOWS-SETUP.md) and [third-party notices](THIRD-PARTY-MEDIA.md).
+Requirements: Windows 10/11 x64, Node.js 22.12+, npm, Windows PowerShell, Rust MSVC with C++ build tools for OmniLink, and the Windows .NET Framework C# compiler for the browser helper. The build fetches hash-pinned Python/libtorrent binaries; users do not need Python installed.
 
 ```powershell
 git clone https://github.com/SheedaMusalli/FluxFetch.git
 cd FluxFetch
-npm install
+npm ci
 npm run build:win
 ```
 
-The Windows installer is written to `release/`. E2E tests can be run with `npm run test:e2e`.
+Installer and browser packages appear in `release/`. See [Windows build instructions](WINDOWS-SETUP.md), [torrent architecture](integrations/torrent-engine/README.md) and [component notices](THIRD-PARTY-MEDIA.md).
 
-## Privacy and safety
+```powershell
+npm run lint
+npm run typecheck
+npm run test:extension
+npm run test:torrent-engine
+npx playwright test e2e/torrent.spec.ts e2e/transferStatus.spec.ts --workers=1
+```
 
-Downloads are transferred directly between your PC and the configured file host. Internet speed tests send timed requests to Cloudflare's public measurement endpoints. The optional remote dashboard serves over HTTPS and should only be exposed beyond your PC when you understand and secure your network and router configuration. Credentials and tokens are protected using Windows encryption where supported. See [third-party notices](THIRD-PARTY-MEDIA.md) for bundled component details.
+Chromium identity depends on a private local extension signing key. Keep it private; a new key produces a new ID and matching native-host registration.
 
-## License
+## Privacy and licenses
 
-FluxFetch is distributed under the MIT License. See [LICENSE](LICENSE) and the included third-party notices for applicable component terms.
+Downloads transfer directly between your PC and their sources. Browser integration uses a local Native Messaging helper. Authentication secrets use Windows encryption where supported. Speed tests contact Cloudflare measurement endpoints. Torrents contact trackers and peers; public torrents may use DHT/PEX. Optional remote access uses authenticated HTTPS and a local certificate; verify its fingerprint before trusting it.
+
+FluxFetch application code uses the [MIT License](LICENSE). Bundled engines, drivers and media tools retain their own licenses: see [THIRD-PARTY-MEDIA.md](THIRD-PARTY-MEDIA.md) and [third-party-licenses](third-party-licenses).

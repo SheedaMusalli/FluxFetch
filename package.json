@@ -1,6 +1,6 @@
 {
   "name": "fluxfetch",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Speed up downloads by combining multiple network connections in parallel",
   "main": "./out/main/index.js",
   "author": {
@@ -22,13 +22,17 @@
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "install-electron && electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
-    "build:win": "npm run build:omnilink && npm run build:extension && npm run build:host && npm run build && electron-builder --win --x64",
+    "build:win": "npm run build:omnilink && npm run build:torrent && npm run build:extension && npm run build:host && npm run build:installer-art && npm run build && electron-builder --win --x64",
+    "build:torrent": "node scripts/prepare-torrent-engine.cjs",
+    "test:torrent-engine": "resources\\torrent-engine\\runtime\\python.exe -c \"import runpy; runpy.run_path('scripts/verify-torrent-engine.py',run_name='__main__')\"",
     "build:mac": "electron-vite build && electron-builder --mac",
     "build:linux": "electron-vite build && electron-builder --linux",
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test --grep @smoke",
     "build:extension": "node scripts/build-extension.cjs",
+    "test:extension": "node scripts/verify-extension.cjs",
     "build:host": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-host.ps1",
+    "build:installer-art": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows-icon.ps1 && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-installer-art.ps1 && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-installer-buttons.ps1",
     "build:omnilink": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-omnilink.ps1",
     "build:media": "node scripts/prepare-media.cjs"
   },

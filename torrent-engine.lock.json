@@ -1,0 +1,18 @@
+{
+  "assets": [
+    {
+      "name": "python",
+      "version": "3.13.16",
+      "url": "https://www.python.org/ftp/python/3.13.16/python-3.13.16-embed-amd64.zip",
+      "sha256": "97dae5274cc54867065e8d5a3226e48c35017ed332a0fdb0e27d5b5821961297",
+      "file": "python.zip"
+    },
+    {
+      "name": "libtorrent",
+      "version": "2.1.1",
+      "url": "https://files.pythonhosted.org/packages/f0/2b/b843874837440dadb6d6cde2374a311367efdb40f86375de46cf9a0e59ea/libtorrent-2.1.1-cp313-cp313-win_amd64.whl",
+      "sha256": "fa11aa801d5b9184f067f559c465d3074a4e878d9c671b00dd4930d6dfce2b46",
+      "file": "libtorrent.zip"
+    }
+  ]
+}

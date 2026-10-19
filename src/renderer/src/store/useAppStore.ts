@@ -80,13 +80,13 @@ interface AppStore {
 }
 
 // Settings saved by the main process, read once before the first paint (see InitialState).
-const initial = window.plexo.initialState
+const initial = window.fluxfetch.initialState
 
 /** Every setting changes optimistically: the store is updated first so the UI feels instant,
  * then this saves it. The store stays the source of truth either way — a failed save just means
  * the change isn't remembered next launch. */
 function persist(patch: AppSettings): void {
-  window.plexo.updateSettings(patch).catch(() => {})
+  window.fluxfetch.updateSettings(patch).catch(() => {})
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -119,7 +119,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (get().interfacesStatus !== 'ready') set({ interfacesStatus: 'loading' })
     set({ interfacesError: null })
     try {
-      get().receiveInterfaces(await window.plexo.listInterfaces())
+      get().receiveInterfaces(await window.fluxfetch.listInterfaces())
     } catch (error) {
       set({
         interfacesStatus: 'error',
@@ -133,7 +133,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   refreshLatencies: async () => {
     try {
-      const latencies = await window.plexo.pingInterfaces()
+      const latencies = await window.fluxfetch.pingInterfaces()
       set({ latencies })
     } catch {
       // Latency is a nice-to-have readout — a failed probe just leaves stale values.
@@ -157,7 +157,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   checkForUpdate: async () => {
     try {
-      const availableUpdate = await window.plexo.checkForUpdate()
+      const availableUpdate = await window.fluxfetch.checkForUpdate()
       set({ availableUpdate })
     } catch {
       // Best-effort — a failed check just leaves the banner hidden.

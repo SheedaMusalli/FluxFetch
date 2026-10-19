@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react'
 import { read, key, changedEvent, removeEntries, type Entry } from '../history'
 import { Button } from '../components/ui/button'
+import { TransferFooter } from '../components/TransferFooter'
 import {
   ArrowDownToLine,
+  CircleAlert,
   Clock3,
   FileArchive,
   FileAudio2,
   FileText,
   FileVideo,
   Gauge,
+  Pause,
   Search,
   Trash2,
+  XCircle,
   Waypoints
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip'
@@ -30,12 +34,14 @@ const speed = (bytesPerSecond: number): string => {
 export function HistoryScreen({
   onAdd,
   onQueue,
+  onTorrents,
   onSpeedTest,
   onRunOmniLink,
   onRetry
 }: {
   onAdd: () => void
   onQueue: () => void
+  onTorrents: () => void
   onSpeedTest: () => void
   onRunOmniLink: () => Promise<void>
   onRetry: (url: string) => void
@@ -55,7 +61,7 @@ export function HistoryScreen({
   const [metadataCategory, setMetadataCategory] = useState('')
   const [metadataDescription, setMetadataDescription] = useState('')
   const [archiveEntries, setArchiveEntries] = useState<
-    Awaited<ReturnType<typeof window.plexo.previewZip>>
+    Awaited<ReturnType<typeof window.fluxfetch.previewZip>>
   >([])
   const [archiveSelection, setArchiveSelection] = useState<string[]>([])
   const [archiveOpen, setArchiveOpen] = useState(false)
@@ -104,7 +110,7 @@ export function HistoryScreen({
     setArchiveBusy(true)
     setError('')
     try {
-      const items = await window.plexo.previewZip(selected.destinationPath)
+      const items = await window.fluxfetch.previewZip(selected.destinationPath)
       setArchiveEntries(items)
       setArchiveSelection([])
       setArchiveOpen(true)
@@ -117,11 +123,11 @@ export function HistoryScreen({
   const extractArchiveSelection = async (): Promise<void> => {
     if (!selected || archiveSelection.length === 0) return
     const defaultFolder = selected.destinationPath.replace(/[\\/][^\\/]+$/, '')
-    const destination = await window.plexo.chooseDestinationFolder(defaultFolder)
+    const destination = await window.fluxfetch.chooseDestinationFolder(defaultFolder)
     if (!destination) return
     setArchiveBusy(true)
     try {
-      const count = await window.plexo.extractZipEntries(
+      const count = await window.fluxfetch.extractZipEntries(
         selected.destinationPath,
         archiveSelection,
         destination
@@ -138,8 +144,8 @@ export function HistoryScreen({
     if (!selected) return
     try {
       await (kind === 'open'
-        ? window.plexo.openFile(selected.destinationPath)
-        : window.plexo.revealInFolder(selected.destinationPath))
+        ? window.fluxfetch.openFile(selected.destinationPath)
+        : window.fluxfetch.revealInFolder(selected.destinationPath))
     } catch (e) {
       setError(readableActionError(e))
     }
@@ -149,7 +155,7 @@ export function HistoryScreen({
     if (selected.sourcePageUrl) {
       try {
         setProperties(false)
-        await window.plexo.openExternalUrl(selected.sourcePageUrl)
+        await window.fluxfetch.openExternalUrl(selected.sourcePageUrl)
         setRefreshAddress(false)
       } catch (e) {
         setError(readableActionError(e))
@@ -166,7 +172,12 @@ export function HistoryScreen({
         .toLowerCase()
         .includes(query.toLowerCase()) &&
       (filter === 'All downloads' ||
-        (filter === 'Finished' ? entry.status === 'completed' : entry.status !== 'completed'))
+        (filter === 'Finished' && entry.status === 'completed') ||
+        (filter === 'Unfinished' && entry.status !== 'completed') ||
+        (filter === 'In progress' && entry.status === 'downloading') ||
+        (filter === 'Paused' && entry.status === 'paused') ||
+        (filter === 'Cancelled' && entry.status === 'cancelled') ||
+        (filter === 'Failed' && entry.status === 'error'))
   )
   const selectableRows = rows.filter((entry) => !['downloading', 'paused'].includes(entry.status))
   const allVisibleSelected =
@@ -205,7 +216,7 @@ export function HistoryScreen({
     const entry = selected
     if (deleteFile) {
       try {
-        await window.plexo.trashFile(entry.destinationPath)
+        await window.fluxfetch.trashFile(entry.destinationPath)
       } catch (e) {
         setError(readableActionError(e))
         return
@@ -233,7 +244,10 @@ export function HistoryScreen({
     }
   }
   const completedCount = entries.filter((entry) => entry.status === 'completed').length
-  const activeCount = entries.filter((entry) => entry.status !== 'completed').length
+  const activeCount = entries.filter((entry) => entry.status === 'downloading').length
+  const pausedCount = entries.filter((entry) => entry.status === 'paused').length
+  const cancelledCount = entries.filter((entry) => entry.status === 'cancelled').length
+  const failedCount = entries.filter((entry) => entry.status === 'error').length
   const fileIcon = (name: string): React.JSX.Element => {
     const extension = name.split('.').pop()?.toLowerCase()
     const Icon = ['zip', '7z', 'rar', 'gz', 'tar'].includes(extension ?? '')
@@ -263,7 +277,12 @@ export function HistoryScreen({
           <Button variant="outline" onClick={onSpeedTest}>
             <Gauge /> Speed test
           </Button>
-          {window.plexo.platform === 'win32' && (
+          {window.fluxfetch.platform === 'win32' && (
+            <Button variant="outline" onClick={onTorrents}>
+              <ArrowDownToLine /> Torrents
+            </Button>
+          )}
+          {window.fluxfetch.platform === 'win32' && (
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -291,15 +310,30 @@ export function HistoryScreen({
           <Button onClick={onAdd}>+ Add URL</Button>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 xl:grid-cols-6">
         {[
-          { label: 'In library', value: entries.length, icon: ArrowDownToLine },
-          { label: 'Completed', value: completedCount, icon: FileText },
-          { label: 'In progress', value: activeCount, icon: Clock3 }
-        ].map(({ label, value, icon: Icon }) => (
-          <div
+          {
+            label: 'In library',
+            value: entries.length,
+            icon: ArrowDownToLine,
+            target: 'All downloads'
+          },
+          { label: 'Completed', value: completedCount, icon: FileText, target: 'Finished' },
+          { label: 'In progress', value: activeCount, icon: Clock3, target: 'In progress' },
+          { label: 'Paused', value: pausedCount, icon: Pause, target: 'Paused' },
+          { label: 'Cancelled', value: cancelledCount, icon: XCircle, target: 'Cancelled' },
+          { label: 'Failed', value: failedCount, icon: CircleAlert, target: 'Failed' }
+        ].map(({ label, value, icon: Icon, target }) => (
+          <button
+            type="button"
             key={label}
-            className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 shadow-sm sm:px-4"
+            aria-label={`${label}: ${value}`}
+            aria-pressed={filter === target}
+            onClick={() => {
+              setFilter(target)
+              setSelectedIds(new Set())
+            }}
+            className={`flex min-w-0 items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-left shadow-sm transition-colors hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-primary sm:px-4 ${filter === target ? 'border-primary/60' : 'border-border'}`}
           >
             <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Icon className="size-4" />
@@ -308,20 +342,28 @@ export function HistoryScreen({
               <div className="text-lg font-semibold leading-5">{value}</div>
               <div className="truncate text-[11px] text-muted-foreground">{label}</div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-3 py-2.5 sm:px-4">
-          <div className="flex items-center gap-1 rounded-lg bg-background p-1">
-            {['All downloads', 'Finished', 'Unfinished'].map((label) => (
+          <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg bg-background p-1">
+            {[
+              'All downloads',
+              'Finished',
+              'Unfinished',
+              'In progress',
+              'Paused',
+              'Cancelled',
+              'Failed'
+            ].map((label) => (
               <button
                 key={label}
                 onClick={() => {
                   setFilter(label)
                   setSelectedIds(new Set())
                 }}
-                className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${filter === label ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`shrink-0 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${filter === label ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 {label}
               </button>
@@ -362,10 +404,11 @@ export function HistoryScreen({
             </colgroup>
             <thead className="sticky top-0 bg-background text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               <tr>
-                <th className="border-b border-border px-2 py-2.5">
+                <th className="border-b border-border px-2 py-2.5 text-center align-middle">
                   <input
                     aria-label="Select all removable downloads"
                     type="checkbox"
+                    className="mx-auto block size-4"
                     checked={allVisibleSelected}
                     disabled={selectableRows.length === 0}
                     onChange={(event) => toggleVisibleEntries(event.target.checked)}
@@ -387,7 +430,7 @@ export function HistoryScreen({
                   onDoubleClick={() => {
                     selectDownload(entry)
                     if (entry.status === 'completed') {
-                      void window.plexo.openFile(entry.destinationPath).catch((e: unknown) => {
+                      void window.fluxfetch.openFile(entry.destinationPath).catch((e: unknown) => {
                         setError(readableActionError(e))
                       })
                     }
@@ -402,10 +445,11 @@ export function HistoryScreen({
                   }}
                   className={`cursor-default border-b border-border/70 transition-colors ${selected?.id === entry.id ? 'bg-primary/10' : 'hover:bg-background/70'}`}
                 >
-                  <td className="px-2 py-3 text-center">
+                  <td className="px-2 py-3 text-center align-middle">
                     <input
                       aria-label={`Select ${entry.fileName}`}
                       type="checkbox"
+                      className="mx-auto block size-4"
                       checked={selectedIds.has(entry.id)}
                       disabled={['downloading', 'paused'].includes(entry.status)}
                       onClick={(event) => event.stopPropagation()}
@@ -449,6 +493,7 @@ export function HistoryScreen({
         </div>
       </div>
       <footer className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-[11px] text-muted-foreground">
+        <TransferFooter onTorrents={onTorrents} />
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
           <span>{rows.length} downloads · Right-click any file for actions</span>
           {entries[0] && (
@@ -474,7 +519,7 @@ export function HistoryScreen({
             [
               'Open progress window',
               () =>
-                void window.plexo
+                void window.fluxfetch
                   .openDownloadWindow(selected.id)
                   .catch((e: unknown) => setError(readableActionError(e))),
               selected.status === 'completed' || selected.status === 'cancelled'

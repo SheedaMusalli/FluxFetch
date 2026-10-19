@@ -35,8 +35,8 @@ fn main() {
         load_balancer.set_bonding_enabled(false);
     }
 
-    // 4. Initialize Desktop Transparent HUD Overlay (Always-on-top, draggable)
-    let overlay = OverlayController::new(Arc::clone(&load_balancer));
+    // 4. Initialize the always-on-top, draggable OmniLink overlay.
+    let overlay = OverlayController::new(Arc::clone(&load_balancer), Arc::clone(&interceptor));
 
     // 5. Spawn the multi-threaded Tokio runtime for high-throughput socket splicing
     let lb_for_proxy = Arc::clone(&load_balancer);

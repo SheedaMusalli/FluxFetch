@@ -111,11 +111,16 @@ async function measureRequest(
     if (networkId) {
       const requestId = `speed-${Date.now()}-${++networkRequestSequence}`
       const cancelRequest = (): void => {
-        void window.plexo.cancelNetworkSpeedSample(requestId).catch(() => undefined)
+        void window.fluxfetch.cancelNetworkSpeedSample(requestId).catch(() => undefined)
       }
       controller.signal.addEventListener('abort', cancelRequest, { once: true })
       try {
-        return await window.plexo.measureNetworkSpeedSample(requestId, networkId, direction, bytes)
+        return await window.fluxfetch.measureNetworkSpeedSample(
+          requestId,
+          networkId,
+          direction,
+          bytes
+        )
       } catch (reason) {
         if (session.cancelled) throw new Error('Speed test cancelled')
         if (session.paused || session.pauseGeneration !== pauseGeneration) continue
@@ -132,7 +137,7 @@ async function measureRequest(
         : 'https://speed.cloudflare.com/__up'
     )
     url.searchParams.set('bytes', String(bytes))
-    url.searchParams.set('plexo', String(++requestSequence))
+    url.searchParams.set('fluxfetch', String(++requestSequence))
 
     try {
       const response = await fetch(url, {
@@ -247,7 +252,7 @@ export function SpeedTestDialog({
 
   useEffect(() => {
     let current = true
-    void window.plexo.deviceBindingSupported().then(
+    void window.fluxfetch.deviceBindingSupported().then(
       (supported) => current && setBindingSupported(supported),
       () => current && setBindingSupported(false)
     )

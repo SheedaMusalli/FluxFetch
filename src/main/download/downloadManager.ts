@@ -86,7 +86,7 @@ interface Attempt {
   /** Aborts this request alone; ChunkRuntime.controller aborts the whole stream. */
   abort: AbortController
   abortReason: AbortReason | null
-  /** What the server's answer cost, for diagnosing slow connections (see PLEXO_DEBUG). */
+  /** What the server's answer cost, for diagnosing slow connections (see FLUXFETCH_DEBUG). */
   response: { ttfbMs: number; reusedSocket: boolean } | null
 }
 
@@ -223,10 +223,10 @@ type PersistedDownload = PersistedDownloadBase &
     | { version: 4; state: DownloadState }
   )
 
-// Set PLEXO_DEBUG=1 to log every request's outcome, how long the server took to answer and
+// Set FLUXFETCH_DEBUG=1 to log every request's outcome, how long the server took to answer and
 // whether it reused a warm connection — what it takes to tell one slow connection from a slow path.
-const debug: (...args: unknown[]) => void = process.env['PLEXO_DEBUG']
-  ? (...args) => console.debug('[plexo]', ...args)
+const debug: (...args: unknown[]) => void = process.env['FLUXFETCH_DEBUG']
+  ? (...args) => console.debug('[fluxfetch]', ...args)
   : () => {}
 
 const UI_UPDATE_MS = 200
@@ -760,7 +760,7 @@ export class DownloadManager {
           // that association after restart so recovery cleanup removes the reservation too.
           const file = new DownloadFile(
             persisted.partialPath,
-            persisted.reservationPath ?? `${state.destinationPath}.plexo`
+            persisted.reservationPath ?? `${state.destinationPath}.fluxfetch`
           )
           if (state.status === 'paused') {
             const size = await file.size().catch(() => -1)
@@ -880,6 +880,26 @@ export class DownloadManager {
       .filter((runtime) => !runtime.removed)
       .map((runtime) => structuredClone(runtime.state))
       .sort((a, b) => (b.completedAt ?? b.startedAt) - (a.completedAt ?? a.startedAt))
+  }
+
+  /** Small live summaries; avoid cloning piece/block maps for the tray and library footer. */
+  async listTransferProgress(): Promise<import('../../shared/transfers').TransferProgress[]> {
+    await this.initialization
+    return [...this.runtimes.values()]
+      .filter(
+        (runtime) =>
+          !runtime.removed && ['downloading', 'paused', 'error'].includes(runtime.state.status)
+      )
+      .map(({ state }) => ({
+        id: state.id,
+        kind: 'normal' as const,
+        name: state.fileName,
+        status: state.status,
+        totalBytes: state.totalBytes,
+        downloadedBytes: state.bytesDownloaded,
+        downloadSpeed: state.status === 'downloading' ? state.speedBytesPerSec : 0,
+        uploadSpeed: 0
+      }))
   }
 
   /** Ask the themed renderer before starting an external browser-originated download. */
@@ -1071,8 +1091,8 @@ export class DownloadManager {
     )
 
     const id = randomUUID()
-    const reservationPath = `${destinationPath}.plexo`
-    const partialPath = join(temporaryDir, `.plexo-download-${randomUUID()}.partial`)
+    const reservationPath = `${destinationPath}.fluxfetch`
+    const partialPath = join(temporaryDir, `.fluxfetch-download-${randomUUID()}.partial`)
     try {
       const handle = await open(partialPath, 'wx+')
       await handle.close()
@@ -1341,8 +1361,7 @@ export class DownloadManager {
     if (self.nudge.signal.aborted) self.nudge = new AbortController()
   }
 
-  /** Keeps the computer from sleeping while a download runs, which would stop it — as
-   * qBittorrent and Transmission offer to. The display can still sleep. */
+  /** Keeps the computer from sleeping while a FluxFetch file download runs. The display can still sleep. */
   private keepAwake(): void {
     const running = [...this.runtimes.values()].some(
       (runtime) => runtime.state.status === 'downloading'

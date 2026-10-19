@@ -17,12 +17,12 @@ import { Origin, type Fault } from './origin'
 // throttled server. The property: whatever the sequence, once the faults stop and the download
 // is resumed it completes with the exact bytes, and every event along the way obeyed the
 // invariants. When a sequence fails, fast-check shrinks it to the shortest one that still
-// fails and prints its seed; rerun that exact case with PLEXO_CHAOS_SEED=<seed>.
+// fails and prints its seed; rerun that exact case with FLUXFETCH_CHAOS_SEED=<seed>.
 //
-// PLEXO_CHAOS_RUNS sets how many sequences to try (default 5; nightly runs more).
+// FLUXFETCH_CHAOS_RUNS sets how many sequences to try (default 5; nightly runs more).
 
-const RUNS = Number(process.env.PLEXO_CHAOS_RUNS ?? 5)
-const SEED = process.env.PLEXO_CHAOS_SEED ? Number(process.env.PLEXO_CHAOS_SEED) : undefined
+const RUNS = Number(process.env.FLUXFETCH_CHAOS_RUNS ?? 5)
+const SEED = process.env.FLUXFETCH_CHAOS_SEED ? Number(process.env.FLUXFETCH_CHAOS_SEED) : undefined
 const SIZE = 48 * BLOCK
 
 interface Model {
@@ -150,7 +150,10 @@ test('any sequence of pauses, crashes and faults still ends in the exact file @c
           bytesPerSecond: 512 * 1024
         }).start()
         // Kept automatic across the relaunches a crash or a quit brings.
-        const app = new FluxFetchApp(dirs, connections === 'auto' ? { PLEXO_E2E_STREAMS: '' } : {})
+        const app = new FluxFetchApp(
+          dirs,
+          connections === 'auto' ? { FLUXFETCH_E2E_STREAMS: '' } : {}
+        )
         const real: Real = { app, origin, id: '', faults: [] }
         origin.setRule(({ range }) =>
           range && !(range.start === 0 && range.end === 0) ? real.faults.shift() : undefined

@@ -22,7 +22,7 @@ function invoke<K extends keyof IpcContract>(
   return ipcRenderer.invoke(IpcChannels[channel], ...args)
 }
 
-const plexoApi = {
+const fluxfetchApi = {
   platform: process.platform,
   // Sync on purpose — see InitialState. One small read, once, before the renderer's first paint.
   initialState: ipcRenderer.sendSync(IpcChannels.getInitialState) as InitialState,
@@ -50,9 +50,30 @@ const plexoApi = {
   extractZipEntries: (filePath: string, entries: string[], destination: string) =>
     invoke('extractZipEntries', filePath, entries, destination),
   openExternalUrl: (url: string) => invoke('openExternalUrl', url),
-  saveTorrentClientConfig: (config: IpcContract['saveTorrentClientConfig']['args'][0]) =>
-    invoke('saveTorrentClientConfig', config),
-  testTorrentClient: () => invoke('testTorrentClient'),
+  addTorrent: (source: string) => invoke('addTorrent', source),
+  chooseTorrentFile: () => invoke('chooseTorrentFile'),
+  listTorrents: () => invoke('listTorrents'),
+  pauseTorrent: (gid: string) => invoke('pauseTorrent', gid),
+  resumeTorrent: (gid: string) => invoke('resumeTorrent', gid),
+  getTransferSummary: () => invoke('getTransferSummary'),
+  onTransferSummaryUpdated: (
+    callback: (summary: import('../shared/transfers').TransferSummary) => void
+  ): (() => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      summary: import('../shared/transfers').TransferSummary
+    ): void => callback(summary)
+    ipcRenderer.on(IpcChannels.transferSummaryUpdated, listener)
+    return () => ipcRenderer.removeListener(IpcChannels.transferSummaryUpdated, listener)
+  },
+  reannounceTorrent: (gid: string) => invoke('reannounceTorrent', gid),
+  openTorrentFolder: (gid: string) => invoke('openTorrentFolder', gid),
+  onTorrentAdded: (callback: () => void): (() => void) => {
+    const listener = (): void => callback()
+    ipcRenderer.on(IpcChannels.torrentAdded, listener)
+    return () => ipcRenderer.removeListener(IpcChannels.torrentAdded, listener)
+  },
+  removeTorrent: (gid: string, deleteFiles: boolean) => invoke('removeTorrent', gid, deleteFiles),
   listSiteAuthOrigins: () => invoke('listSiteAuthOrigins'),
   saveSiteAuth: (input: IpcContract['saveSiteAuth']['args'][0]) => invoke('saveSiteAuth', input),
   removeSiteAuth: (origin: string) => invoke('removeSiteAuth', origin),
@@ -125,21 +146,32 @@ const plexoApi = {
       callback(networks)
     ipcRenderer.on(IpcChannels.networksChanged, listener)
     return () => ipcRenderer.removeListener(IpcChannels.networksChanged, listener)
+  },
+
+  onTorrentsUpdated: (
+    callback: (torrents: import('../shared/torrent').TorrentTransfer[]) => void
+  ): (() => void) => {
+    const listener = (
+      _event: IpcRendererEvent,
+      torrents: import('../shared/torrent').TorrentTransfer[]
+    ): void => callback(torrents)
+    ipcRenderer.on(IpcChannels.torrentsUpdated, listener)
+    return () => ipcRenderer.removeListener(IpcChannels.torrentsUpdated, listener)
   }
 }
 
-export type PlexoApi = typeof plexoApi
+export type FluxFetchApi = typeof fluxfetchApi
 
-// Nothing in the renderer needs raw Electron/Node access — only the typed plexoApi above is
+// Nothing in the renderer needs raw Electron/Node access — only the typed fluxfetchApi above is
 // exposed. The @electron-toolkit/preload electronAPI (which hands the renderer an unrestricted
 // ipcRenderer.invoke/send/on on any channel) is deliberately not bridged.
 if (process.contextIsolated) {
   try {
-    contextBridge.exposeInMainWorld('plexo', plexoApi)
+    contextBridge.exposeInMainWorld('fluxfetch', fluxfetchApi)
   } catch (error) {
     console.error(error)
   }
 } else {
   // @ts-ignore (define in dts)
-  window.plexo = plexoApi
+  window.fluxfetch = fluxfetchApi
 }

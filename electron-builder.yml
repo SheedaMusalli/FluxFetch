@@ -1,5 +1,6 @@
 appId: com.fluxfetch.app
 productName: FluxFetch
+afterPack: scripts/verify-packaged-app.cjs
 directories:
   buildResources: build
   output: release

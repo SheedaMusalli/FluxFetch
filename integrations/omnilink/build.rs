@@ -19,7 +19,9 @@ fn main() {
     if let Ok(out_dir) = env::var("OUT_DIR") {
         if let Some(target_profile_dir) = Path::new(&out_dir).ancestors().nth(3) {
             let deps_dir = target_profile_dir.join("deps");
+            let examples_dir = target_profile_dir.join("examples");
             let _ = fs::create_dir_all(&deps_dir);
+            let _ = fs::create_dir_all(&examples_dir);
 
             for filename in &["WinDivert.dll", "WinDivert64.sys"] {
                 let src = vendor_dir.join(filename);
@@ -28,6 +30,7 @@ fn main() {
                     let _ = fs::copy(&src, &dst_profile);
                     let dst_deps = deps_dir.join(filename);
                     let _ = fs::copy(&src, &dst_deps);
+                    let _ = fs::copy(&src, examples_dir.join(filename));
                 } else {
                     println!(
                         "cargo:warning=Missing {} in {}. Place WinDivert 2.2 x64 files there before running.",

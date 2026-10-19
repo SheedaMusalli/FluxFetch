@@ -38,5 +38,6 @@ foreach ($file in $requiredFiles) {
   Copy-Item -LiteralPath (Join-Path $output $file) -Destination $staging -Force
 }
 Copy-Item -LiteralPath (Join-Path $omniLinkRoot 'vendor\windivert\LICENSE') -Destination (Join-Path $staging 'WinDivert-LICENSE.txt') -Force
+Copy-Item -LiteralPath (Join-Path $omniLinkRoot 'vendor\ferrisetw-LICENSE.txt') -Destination (Join-Path $staging 'FerrisETW-LICENSE.txt') -Force
 Copy-Item -LiteralPath (Join-Path $omniLinkRoot 'README.md') -Destination (Join-Path $staging 'OmniLink-README.md') -Force
 Write-Host "Built and staged OmniLink for FluxFetch: $staging"

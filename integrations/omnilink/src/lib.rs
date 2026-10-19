@@ -6,4 +6,6 @@ pub mod load_balancer;
 pub mod overlay;
 pub mod socket_binder;
 pub mod steam_download_state;
+pub mod telemetry;
+pub mod traffic_observer;
 pub mod tray;

@@ -114,7 +114,7 @@ OmniLink includes a sleek, floating desktop HUD overlay that stays on top of eve
 - **Opaque FluxFetch Theme:** Solid dark surfaces, purple accents, and smooth rounded corners match the FluxFetch interface.
 - **Zero Desktop Clutter (`WS_EX_TOOLWINDOW`):** Does not appear in your Windows Taskbar or Alt+Tab switcher.
 - **Fully Draggable:** Click and drag anywhere on the overlay to position it on any monitor.
-- **Launcher Metrics:** Shows detected launcher processes and receive speed on routed connections, averaged over about one second. The Transferring badge also covers background client requests.
+- **Launcher Metrics:** Independent ETW observation covers selected launcher IPv4/IPv6 TCP and UDP receive traffic, including pre-existing direct connections. Routed payload and whole-adapter receive rates are displayed separately from the same telemetry snapshot. Collection failures are marked unavailable.
 - **Expandable Details:** Use the arrow control to expand or collapse per-adapter routed receive speeds and bonding status.
 - **Easy Hide / Show:**
   - **From System Tray:** Right-click the green OmniLink tray icon $\rightarrow$ uncheck/check **`Show Desktop HUD Overlay`**.

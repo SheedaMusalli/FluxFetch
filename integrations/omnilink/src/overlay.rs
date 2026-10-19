@@ -36,9 +36,9 @@ extern "system" {
 const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: isize = -4;
 
 const BASE_WIDTH: i32 = 300;
-const BASE_ROW_HEIGHT: i32 = 68;
+const BASE_ROW_HEIGHT: i32 = 84;
 const BASE_HEADER_HEIGHT: i32 = 28;
-const BASE_SUMMARY_HEIGHT: i32 = 54;
+const BASE_SUMMARY_HEIGHT: i32 = 76;
 const BASE_DETAILS_HEADER_HEIGHT: i32 = 28;
 const BASE_FOOTER_HEIGHT: i32 = 20;
 const BASE_PADDING: i32 = 8;
@@ -557,13 +557,9 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
     let row_h = ctx.scale(BASE_ROW_HEIGHT);
     let radius = ctx.scale(BASE_CORNER_RADIUS);
     let states = ctx.controller.load_balancer.snapshot_states();
+    let telemetry = ctx.controller.load_balancer.telemetry();
     let launcher_running = ctx.controller.interceptor.is_target_process_running();
-    let transferring = launcher_running && ctx.controller.load_balancer.is_transferring();
-    let total_download = if transferring {
-        ctx.controller.load_balancer.total_download_mbps()
-    } else {
-        0.0
-    };
+    let transferring = !telemetry.stale() && telemetry.observed_bps.is_some_and(|bps| bps > 0);
 
     let mem_dc = CreateCompatibleDC(hdc);
     let mem_bmp = CreateCompatibleBitmap(hdc, width, height);
@@ -606,23 +602,26 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
         DT_LEFT,
     );
 
-    let (status, status_fg, status_bg, status_border) = if !launcher_running {
-        (
-            "NO LAUNCHER RUNNING",
-            muted,
-            rgb(41, 43, 62),
-            rgb(68, 71, 93),
-        )
-    } else if transferring {
-        ("TRANSFERRING", teal, rgb(32, 59, 59), rgb(53, 99, 92))
-    } else {
-        (
-            "LAUNCHERS RUNNING",
-            purple,
-            rgb(43, 39, 70),
-            rgb(82, 70, 132),
-        )
-    };
+    let (status, status_fg, status_bg, status_border) =
+        if telemetry.stale() || telemetry.observed_bps.is_none() {
+            ("OBSERVER OFF", muted, rgb(41, 43, 62), rgb(68, 71, 93))
+        } else if !launcher_running {
+            (
+                "NO LAUNCHER RUNNING",
+                muted,
+                rgb(41, 43, 62),
+                rgb(68, 71, 93),
+            )
+        } else if transferring {
+            ("TRANSFERRING", teal, rgb(32, 59, 59), rgb(53, 99, 92))
+        } else {
+            (
+                "LAUNCHERS RUNNING",
+                purple,
+                rgb(43, 39, 70),
+                rgb(82, 70, 132),
+            )
+        };
     let badge_rect = RECT {
         left: width - pad - ctx.scale(126),
         top: pad,
@@ -661,7 +660,7 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
         mem_dc,
         ctx.font_small,
         muted,
-        "OMNILINK ROUTED SPEED",
+        "LAUNCHER NETWORK RX",
         RECT {
             left: summary_rect.left + ctx.scale(13),
             top: summary_rect.top + ctx.scale(5),
@@ -674,11 +673,25 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
         mem_dc,
         ctx.font_metric,
         if transferring { teal } else { foreground },
-        &format_speed(total_download),
+        &telemetry.observed_text(),
         RECT {
             left: summary_rect.left + ctx.scale(13),
             top: summary_rect.top + ctx.scale(20),
             right: summary_rect.right - ctx.scale(12),
+            bottom: summary_rect.bottom - ctx.scale(23),
+        },
+        DT_LEFT,
+    );
+
+    draw_overlay_text(
+        mem_dc,
+        ctx.font_small,
+        muted,
+        &format!("Routed payload: {}", telemetry.routed_text()),
+        RECT {
+            left: summary_rect.left + ctx.scale(13),
+            top: summary_rect.bottom - ctx.scale(23),
+            right: summary_rect.right - ctx.scale(10),
             bottom: summary_rect.bottom - ctx.scale(3),
         },
         DT_LEFT,
@@ -686,10 +699,7 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
 
     if ctx.expanded {
         let details_top = summary_rect.bottom;
-        let active_connections: usize = states
-            .iter()
-            .map(|state| state.active_connections.load(Ordering::Relaxed))
-            .sum();
+        let active_connections: usize = telemetry.adapters.iter().map(|a| a.connections).sum();
         draw_overlay_text(
             mem_dc,
             ctx.font_small,
@@ -704,10 +714,10 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
             DT_LEFT,
         );
 
-        let routing_text = if ctx.controller.load_balancer.is_bonding_enabled() {
-            "BONDING ON"
+        let routing_text = if telemetry.stale() {
+            "UNAVAILABLE"
         } else {
-            "BONDING PAUSED"
+            telemetry.routing_status
         };
         draw_overlay_text(
             mem_dc,
@@ -725,6 +735,10 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
 
         let mut row_top = details_top + ctx.scale(BASE_DETAILS_HEADER_HEIGHT);
         for state in &states {
+            let sample = telemetry
+                .adapters
+                .iter()
+                .find(|a| a.if_index == state.adapter.if_index);
             let row = RECT {
                 left: pad,
                 top: row_top,
@@ -755,7 +769,7 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
 
             let enabled = state.enabled.load(Ordering::Relaxed);
             let healthy = state.healthy.load(Ordering::Relaxed);
-            let connections = state.active_connections.load(Ordering::Relaxed);
+            let connections = sample.map_or(0, |a| a.connections);
             let state_label = if !enabled {
                 "PAUSED"
             } else if !healthy {
@@ -774,27 +788,51 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
                 RECT {
                     left: text_left,
                     top: row.top + ctx.scale(1),
-                    right: row.right - ctx.scale(92),
+                    right: row.right - ctx.scale(138),
                     bottom: row.top + ctx.scale(21),
                 },
                 DT_LEFT,
             );
             draw_overlay_text(
                 mem_dc,
-                ctx.font_bold,
+                ctx.font_small,
                 teal,
-                &format_speed(if transferring {
-                    state.download_mbps()
-                } else {
-                    0.0
-                }),
+                &format!(
+                    "Routed {}",
+                    crate::telemetry::format_rate(if telemetry.stale() {
+                        None
+                    } else {
+                        sample.map(|a| a.routed_bps)
+                    })
+                ),
                 RECT {
-                    left: row.right - ctx.scale(100),
+                    left: row.right - ctx.scale(140),
                     top: row.top + ctx.scale(1),
                     right: text_right,
                     bottom: row.top + ctx.scale(21),
                 },
                 DT_RIGHT,
+            );
+
+            draw_overlay_text(
+                mem_dc,
+                ctx.font_small,
+                muted,
+                &format!(
+                    "Adapter RX (all apps): {}",
+                    crate::telemetry::format_rate(if telemetry.stale() {
+                        None
+                    } else {
+                        sample.and_then(|a| a.network_rx_bps)
+                    })
+                ),
+                RECT {
+                    left: text_left,
+                    top: row.top + ctx.scale(40),
+                    right: text_right,
+                    bottom: row.top + ctx.scale(57),
+                },
+                DT_LEFT,
             );
 
             draw_overlay_text(
@@ -827,7 +865,7 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
                 ),
                 RECT {
                     left: text_left,
-                    top: row.top + ctx.scale(41),
+                    top: row.top + ctx.scale(58),
                     right: text_right,
                     bottom: row.bottom - ctx.scale(2),
                 },
@@ -916,14 +954,6 @@ unsafe fn draw_overlay_pill(
 ) {
     draw_overlay_card(dc, rect, background, border, ctx.scale(12));
     draw_overlay_text(dc, ctx.font_badge, foreground, text, rect, DT_CENTER);
-}
-
-fn format_speed(mbps: f64) -> String {
-    if mbps >= 1000.0 {
-        format!("{:.2} Gbps", mbps / 1000.0)
-    } else {
-        format!("{:.1} Mbps", mbps)
-    }
 }
 
 fn format_link_speed(bits_per_second: u64) -> String {

@@ -31,6 +31,7 @@ pub struct OmniLinkTrayApp {
     overlay: Arc<crate::overlay::OverlayController>,
     tray_icon: Option<TrayIcon>,
     header_item: MenuItem,
+    observer_item: MenuItem,
     toggle_bonding_item: CheckMenuItem,
     toggle_overlay_item: CheckMenuItem,
     mode_weighted_item: CheckMenuItem,
@@ -79,6 +80,7 @@ impl OmniLinkTrayApp {
             overlay,
             tray_icon: None,
             header_item,
+            observer_item: MenuItem::new("Observer: starting", false, None),
             toggle_bonding_item,
             toggle_overlay_item,
             mode_weighted_item,
@@ -102,6 +104,7 @@ impl OmniLinkTrayApp {
         let menu = Menu::new();
 
         let _ = menu.append(&self.header_item);
+        let _ = menu.append(&self.observer_item);
         let _ = menu.append(&PredefinedMenuItem::separator());
         let _ = menu.append(&self.toggle_bonding_item);
         let _ = menu.append(&self.toggle_overlay_item);
@@ -160,7 +163,14 @@ impl OmniLinkTrayApp {
         for state in self.load_balancer.snapshot_states() {
             let if_index = state.adapter.if_index;
             let menu_id = format!("{}{}", ADAPTER_ID_PREFIX, if_index);
-            let label = state.adapter.tray_label(state.current_mbps());
+            let snapshot = self.load_balancer.telemetry();
+            let label = state.adapter.tray_label(
+                snapshot
+                    .adapters
+                    .iter()
+                    .find(|a| a.if_index == if_index)
+                    .map_or(0.0, |a| a.routed_bps as f64 / 1e6),
+            );
             let enabled = state.enabled.load(std::sync::atomic::Ordering::Relaxed);
 
             let item = CheckMenuItem::with_id(menu_id, label, true, enabled, None);
@@ -182,52 +192,52 @@ impl OmniLinkTrayApp {
     }
 
     fn refresh_live_telemetry(&mut self) {
-        let launcher_running = self.interceptor.is_target_process_running();
-        let total_mbps = if launcher_running {
-            self.load_balancer.total_mbps()
-        } else {
-            0.0
-        };
-        let interceptor_ready = self.interceptor.is_running();
-        let active = self.load_balancer.is_bonding_enabled() && interceptor_ready;
-
-        let status_text = if !launcher_running {
-            "Launchers: Not running · 0.0 Mbps".to_string()
-        } else if !interceptor_ready {
-            format!(
-                "Launchers: Running · OmniLink unavailable · {:.1} Mbps",
-                total_mbps
-            )
-        } else if total_mbps > 0.0 {
-            format!("Launchers: Transferring · {:.1} Mbps", total_mbps)
-        } else if active {
-            "Launchers: Running · 0.0 Mbps".to_string()
-        } else {
-            "Launchers: Running · OmniLink paused · 0.0 Mbps".to_string()
-        };
+        let snapshot = self.load_balancer.telemetry();
+        let status_text = format!(
+            "Launcher RX: {} · Routed: {} · {}",
+            snapshot.observed_text(),
+            snapshot.routed_text(),
+            if snapshot.stale() {
+                "STALE"
+            } else {
+                snapshot.routing_status
+            }
+        );
         self.header_item.set_text(&status_text);
-        self.toggle_bonding_item.set_checked(active);
+        self.observer_item
+            .set_text(&format!("Observer: {}", snapshot.observer_status));
+        self.toggle_bonding_item
+            .set_checked(self.load_balancer.is_bonding_enabled());
 
         // Keep overlay toggle checkmark synchronized with live overlay visibility
         self.toggle_overlay_item
             .set_checked(self.overlay.is_visible());
 
         if let Some(tray) = &self.tray_icon {
-            let _ = tray.set_tooltip(Some(format!(
-                "{}\n{}",
-                status_text,
-                self.interceptor.running_targets()
-            )));
+            let tooltip = format!("{}\n{}", status_text, self.interceptor.running_targets());
+            let _ = tray.set_tooltip(Some(tooltip.chars().take(120).collect::<String>()));
         }
 
         for state in self.load_balancer.snapshot_states() {
             if let Some(item) = self.adapter_menu_items.get(&state.adapter.if_index) {
-                let speed = if launcher_running && self.load_balancer.is_transferring() {
-                    state.current_mbps()
-                } else {
-                    0.0
-                };
-                let updated_label = state.adapter.tray_label(speed);
+                let sample = snapshot
+                    .adapters
+                    .iter()
+                    .find(|a| a.if_index == state.adapter.if_index);
+                let updated_label = format!(
+                    "{} · Routed {} · Adapter RX {}",
+                    state.adapter.friendly_name,
+                    crate::telemetry::format_rate(if snapshot.stale() {
+                        None
+                    } else {
+                        sample.map(|a| a.routed_bps)
+                    }),
+                    crate::telemetry::format_rate(if snapshot.stale() {
+                        None
+                    } else {
+                        sample.and_then(|a| a.network_rx_bps)
+                    })
+                );
                 item.set_text(updated_label);
             }
         }
@@ -280,6 +290,7 @@ impl OmniLinkTrayApp {
                 set_autostart_enabled(target_state);
             }
             ID_QUIT => {
+                self.load_balancer.stop_telemetry();
                 self.overlay.set_visible(false);
                 self.interceptor.stop();
                 self.tray_icon.take();

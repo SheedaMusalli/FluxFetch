@@ -12,6 +12,7 @@ use tokio::net::{TcpListener, TcpStream};
 use crate::interceptor::LauncherInterceptor;
 use crate::load_balancer::{AdapterState, LoadBalancer};
 use crate::socket_binder::connect_via_adapter;
+use crate::traffic_observer::FlowKey;
 
 const STALL_TIMEOUT: Duration = Duration::from_millis(3500);
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(2500);
@@ -162,8 +163,8 @@ impl BondDispatcher {
         lb: Arc<LoadBalancer>,
         interceptor: Arc<LauncherInterceptor>,
     ) -> io::Result<()> {
-        let target_addr = if let Some(orig) = interceptor.get_original_destination(peer_addr.port())
-        {
+        let original = interceptor.get_original_destination(peer_addr);
+        let target_addr = if let Some(orig) = original {
             orig
         } else {
             Self::negotiate_socks5_fallback(&mut client_stream).await?
@@ -204,6 +205,18 @@ impl BondDispatcher {
                 "All selected adapters failed to connect",
             )
         })?;
+        let _observation = lb.observer.register_proxy(
+            original.map(|remote| FlowKey {
+                protocol: 6,
+                local: peer_addr,
+                remote,
+            }),
+            FlowKey {
+                protocol: 6,
+                local: upstream_tcp.local_addr()?,
+                remote: target_addr,
+            },
+        );
 
         let epoch = Instant::now();
         let last_activity_ms = Arc::new(AtomicU64::new(0));

@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
@@ -157,6 +157,10 @@ impl AdapterState {
 }
 
 pub struct LoadBalancer {
+    pub observer: Arc<crate::traffic_observer::TrafficObserver>,
+    telemetry: RwLock<crate::telemetry::TelemetrySnapshot>,
+    interceptor: RwLock<Option<Arc<crate::interceptor::LauncherInterceptor>>>,
+    telemetry_running: AtomicBool,
     states: RwLock<Vec<Arc<AdapterState>>>,
     mode: RwLock<SchedulingMode>,
     rr_counter: AtomicUsize,
@@ -172,6 +176,10 @@ impl LoadBalancer {
             .collect();
 
         let lb = Arc::new(Self {
+            observer: Arc::new(crate::traffic_observer::TrafficObserver::new()),
+            telemetry: RwLock::new(Default::default()),
+            interceptor: RwLock::new(None),
+            telemetry_running: AtomicBool::new(true),
             states: RwLock::new(states),
             mode: RwLock::new(SchedulingMode::DynamicWeighted),
             rr_counter: AtomicUsize::new(0),
@@ -185,6 +193,19 @@ impl LoadBalancer {
 
     pub fn is_bonding_enabled(&self) -> bool {
         self.bonding_enabled.load(Ordering::Relaxed)
+    }
+
+    pub fn attach_interceptor(&self, interceptor: Arc<crate::interceptor::LauncherInterceptor>) {
+        *self.interceptor.write().unwrap() = Some(interceptor);
+    }
+
+    pub fn telemetry(&self) -> crate::telemetry::TelemetrySnapshot {
+        self.telemetry.read().unwrap().clone()
+    }
+
+    pub fn stop_telemetry(&self) {
+        self.telemetry_running.store(false, Ordering::Relaxed);
+        self.observer.stop();
     }
 
     pub fn set_bonding_enabled(&self, enabled: bool) {
@@ -335,14 +356,23 @@ impl LoadBalancer {
                 let tick_interval = Duration::from_millis(500);
                 let mut last_tick = Instant::now();
                 let mut ticks: u64 = 0;
-                loop {
+                let mut window = crate::telemetry::RateWindow::default();
+                let mut nic_baselines = HashMap::new();
+                while lb.telemetry_running.load(Ordering::Relaxed) {
                     std::thread::sleep(tick_interval);
                     let now = Instant::now();
-                    let elapsed_secs = now.duration_since(last_tick).as_secs_f64().max(0.1);
+                    let elapsed = now.duration_since(last_tick);
+                    let elapsed_secs = elapsed.as_secs_f64().max(f64::EPSILON);
                     last_tick = now;
                     ticks += 1;
 
                     let states = lb.snapshot_states();
+                    let targets = crate::launcher_profiles::target_names();
+                    let names: Vec<&str> = targets.iter().map(String::as_str).collect();
+                    lb.observer
+                        .set_targets(crate::interceptor::find_process_pids(&names));
+                    let observed = lb.observer.sample();
+                    let mut adapter_samples = Vec::new();
                     for state in &states {
                         let bytes = state.window_bytes.swap(0, Ordering::Relaxed);
                         let instant_bps = ((bytes as f64 * 8.0) / elapsed_secs) as u64;
@@ -367,6 +397,24 @@ impl LoadBalancer {
                             .swap(0, Ordering::Relaxed);
                         state
                             .record_launcher_download_sample(launcher_download_bytes, elapsed_secs);
+                        let current_nic =
+                            crate::adapters::get_adapter_octets(state.adapter.if_index)
+                                .map(|(rx, _)| rx);
+                        let nic_delta = match current_nic {
+                            Some(value) => nic_baselines
+                                .insert(state.adapter.if_index, value)
+                                .and_then(|old| value.checked_sub(old)),
+                            None => {
+                                nic_baselines.remove(&state.adapter.if_index);
+                                None
+                            }
+                        };
+                        adapter_samples.push((
+                            state.adapter.if_index,
+                            launcher_download_bytes,
+                            nic_delta,
+                            state.active_connections.load(Ordering::Relaxed),
+                        ));
                         state.upload_bps.store(
                             ((launcher_upload_bytes as f64 * 8.0) / elapsed_secs) as u64,
                             Ordering::Relaxed,
@@ -393,6 +441,26 @@ impl LoadBalancer {
                             .any(|state| state.download_bps.load(Ordering::Relaxed) > 0),
                         Ordering::Relaxed,
                     );
+                    nic_baselines
+                        .retain(|index, _| states.iter().any(|s| s.adapter.if_index == *index));
+                    let ready = lb
+                        .interceptor
+                        .read()
+                        .unwrap()
+                        .as_ref()
+                        .is_some_and(|i| i.is_running());
+                    let snapshot = window.push(
+                        crate::telemetry::Frame {
+                            elapsed,
+                            observed_bytes: observed.healthy.then_some(observed.bytes),
+                            adapters: adapter_samples,
+                        },
+                        Instant::now(),
+                        observed.status,
+                        lb.is_bonding_enabled(),
+                        ready,
+                    );
+                    *lb.telemetry.write().unwrap() = snapshot;
                 }
             })
             .expect("Failed to spawn telemetry thread");

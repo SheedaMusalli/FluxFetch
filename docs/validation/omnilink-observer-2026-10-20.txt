@@ -1,0 +1,5 @@
+PASS tcp4 proxy=false: payload=2097152, observed=2097152
+PASS tcp6 proxy=false: payload=2097152, observed=2097152
+PASS udp4 proxy=false: payload=262144, observed=262144
+PASS udp6 proxy=false: payload=262144, observed=262144
+PASS tcp4 proxy=true: payload=2097152, observed=2097152

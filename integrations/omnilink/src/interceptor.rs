@@ -121,14 +121,14 @@ pub struct NatSession {
     pub client_port: u16,
     pub original_dst_ip: Ipv4Addr,
     pub original_dst_port: u16,
-    pub created_at: Instant,
+    pub last_seen: Instant,
 }
 
 /// Transparently intercepts `target applications` TCP port 80/443 connections and routes them
 /// to the local OmniLink multi-NIC dispatcher.
 pub struct LauncherInterceptor {
     proxy_port: u16,
-    nat_table: Arc<DashMap<u16, NatSession>>,
+    nat_table: Arc<DashMap<(Ipv4Addr, u16), NatSession>>,
     target_pids: Arc<RwLock<HashSet<u32>>>,
     target_names: Arc<RwLock<Vec<String>>>,
     running: Arc<AtomicBool>,
@@ -165,9 +165,12 @@ impl LauncherInterceptor {
     }
 
     /// Called by `src/dispatcher.rs` when a new connection arrives on `0.0.0.0:19080`
-    /// to retrieve the true launcherPipe CDN IP and port that `target applications` requested.
-    pub fn get_original_destination(&self, client_port: u16) -> Option<SocketAddr> {
-        self.nat_table.get(&client_port).map(|entry| {
+    /// to retrieve the remote address requested by the original launcher socket.
+    pub fn get_original_destination(&self, client: SocketAddr) -> Option<SocketAddr> {
+        let std::net::IpAddr::V4(ip) = client.ip() else {
+            return None;
+        };
+        self.nat_table.get(&(ip, client.port())).map(|entry| {
             SocketAddr::V4(SocketAddrV4::new(
                 entry.original_dst_ip,
                 entry.original_dst_port,
@@ -200,11 +203,12 @@ impl LauncherInterceptor {
                     if let Ok(mut guard) = pids_clone.write() {
                         *guard = latest_pids;
                     }
-                    // Evict NAT sessions older than 10 minutes
+                    // Retain active sockets regardless of their age. If querying Windows
+                    // fails, do not destroy connection state based on an unknown snapshot.
                     let now = Instant::now();
-                    nat_clone.retain(|_, session| {
-                        now.duration_since(session.created_at) < Duration::from_secs(600)
-                    });
+                    if let Ok(rows) = tcp_rows() {
+                        nat_clone.retain(|_, session| retain_session(session, &rows, now));
+                    }
                     std::thread::sleep(Duration::from_secs(2));
                 }
             })?;
@@ -246,7 +250,8 @@ impl LauncherInterceptor {
                         )
                     };
                     if ok == 0 {
-                        continue;
+                        running.store(false, Ordering::Relaxed);
+                        break;
                     }
 
                     let pkt_slice = &mut packet[..recv_len as usize];
@@ -265,7 +270,12 @@ impl LauncherInterceptor {
                             &mut addr,
                             0,
                         );
-                        WinDivertSend(handle, pkt_slice.as_ptr(), recv_len, &mut send_len, &addr);
+                        if WinDivertSend(handle, pkt_slice.as_ptr(), recv_len, &mut send_len, &addr)
+                            == 0
+                        {
+                            running.store(false, Ordering::Relaxed);
+                            break;
+                        }
                     }
                 }
 
@@ -285,7 +295,7 @@ impl LauncherInterceptor {
         packet: &mut [u8],
         addr: &mut WinDivertAddress,
         proxy_port: u16,
-        nat_table: &DashMap<u16, NatSession>,
+        nat_table: &DashMap<(Ipv4Addr, u16), NatSession>,
         target_pids: &RwLock<HashSet<u32>>,
     ) {
         if packet.len() < size_of::<Ipv4Header>() {
@@ -294,7 +304,11 @@ impl LauncherInterceptor {
 
         let ip_hdr = unsafe { &mut *(packet.as_mut_ptr() as *mut Ipv4Header) };
         let ihl = ((ip_hdr.ver_ihl & 0x0F) as usize) * 4;
-        if ip_hdr.protocol != 6 || packet.len() < ihl + size_of::<TcpHeader>() {
+        if ip_hdr.ver_ihl >> 4 != 4
+            || ihl < 20
+            || ip_hdr.protocol != 6
+            || packet.len() < ihl + size_of::<TcpHeader>()
+        {
             return;
         }
 
@@ -307,7 +321,11 @@ impl LauncherInterceptor {
 
         // CASE A: Reply packet coming from our local Dispatcher (src_port == proxy_port) back to target applications
         if src_port == proxy_port {
-            if let Some(session) = nat_table.get(&dst_port) {
+            if let Some(mut session) = nat_table.get_mut(&(dst_ip, dst_port)) {
+                if dst_ip != session.client_ip {
+                    return;
+                }
+                session.last_seen = Instant::now();
                 // Rewrite source IP/Port back to original launcher CDN IP/Port
                 ip_hdr.src_addr = u32::from(session.original_dst_ip).to_be();
                 ip_hdr.dst_addr = u32::from(session.client_ip).to_be();
@@ -322,14 +340,31 @@ impl LauncherInterceptor {
         // CASE B: Outbound packet to TCP 80/443
         if dst_port == 80 || dst_port == 443 {
             // Check if this source port is already tracked in our NAT table
-            let is_tracked = if let Some(session) = nat_table.get(&src_port) {
+            let is_tracked = if let Some(mut session) =
+                nat_table.get_mut(&(src_ip, src_port)).filter(|s| {
+                    s.client_ip == src_ip
+                        && s.original_dst_ip == dst_ip
+                        && s.original_dst_port == dst_port
+                }) {
                 // Only redirect the original target applications socket, NEVER the dispatcher's own upstream sockets!
-                session.original_dst_ip == dst_ip && session.original_dst_port == dst_port
+                session.last_seen = Instant::now();
+                true
             } else if (tcp_hdr.flags & TCP_FLAG_SYN) != 0 {
+                // A shared local endpoint cannot map two destinations to this one
+                // proxy port. Leave a collision direct rather than corrupting a live flow.
+                if nat_table.contains_key(&(src_ip, src_port)) {
+                    return;
+                }
                 // New TCP SYN packet: check if the socket belongs to target applications
                 let belongs_to_steam = {
                     if let Ok(pids) = target_pids.read() {
-                        !pids.is_empty() && is_port_owned_by_pids(src_port, &pids)
+                        !pids.is_empty()
+                            && tcp_rows().is_ok_and(|rows| {
+                                rows.iter().any(|row| {
+                                    pids.contains(&row.dwOwningPid)
+                                        && row_matches(row, src_ip, src_port, dst_ip, dst_port)
+                                })
+                            })
                     } else {
                         false
                     }
@@ -337,13 +372,13 @@ impl LauncherInterceptor {
 
                 if belongs_to_steam {
                     nat_table.insert(
-                        src_port,
+                        (src_ip, src_port),
                         NatSession {
                             client_ip: src_ip,
                             client_port: src_port,
                             original_dst_ip: dst_ip,
                             original_dst_port: dst_port,
-                            created_at: Instant::now(),
+                            last_seen: Instant::now(),
                         },
                     );
                     true
@@ -424,62 +459,132 @@ fn find_target_processes(target_exes: &[&str]) -> (HashSet<u32>, Vec<String>) {
 
 /// Queries the kernel TCP table (`GetExtendedTcpTable`) to check if `local_port` belongs to any PID in `target_pids`.
 pub fn is_port_owned_by_pids(local_port: u16, target_pids: &HashSet<u32>) -> bool {
-    let mut size: u32 = 0;
-    unsafe {
-        GetExtendedTcpTable(
-            ptr::null_mut(),
-            &mut size,
-            0,
-            AF_INET as u32,
-            TCP_TABLE_OWNER_PID_CONNECTIONS,
-            0,
-        );
-    }
-    if size == 0 {
-        return false;
-    }
+    tcp_rows().is_ok_and(|rows| {
+        rows.iter().any(|row| {
+            u16::from_be(row.dwLocalPort as u16) == local_port
+                && target_pids.contains(&row.dwOwningPid)
+        })
+    })
+}
 
-    let mut buffer = vec![0u8; size as usize];
-    let ret = unsafe {
-        GetExtendedTcpTable(
-            buffer.as_mut_ptr() as *mut _,
-            &mut size,
-            0,
-            AF_INET as u32,
-            TCP_TABLE_OWNER_PID_CONNECTIONS,
-            0,
+fn row_matches(
+    row: &MIB_TCPROW_OWNER_PID,
+    local: Ipv4Addr,
+    local_port: u16,
+    remote: Ipv4Addr,
+    remote_port: u16,
+) -> bool {
+    Ipv4Addr::from(row.dwLocalAddr.to_ne_bytes()) == local
+        && u16::from_be(row.dwLocalPort as u16) == local_port
+        && Ipv4Addr::from(row.dwRemoteAddr.to_ne_bytes()) == remote
+        && u16::from_be(row.dwRemotePort as u16) == remote_port
+}
+
+fn retain_session(session: &NatSession, rows: &[MIB_TCPROW_OWNER_PID], now: Instant) -> bool {
+    rows.iter().any(|row| {
+        row_matches(
+            row,
+            session.client_ip,
+            session.client_port,
+            session.original_dst_ip,
+            session.original_dst_port,
         )
-    };
+    }) || now.duration_since(session.last_seen) < Duration::from_secs(120)
+}
 
-    if ret != NO_ERROR && ret != ERROR_INSUFFICIENT_BUFFER {
-        return false;
-    }
-
-    let table = unsafe { &*(buffer.as_ptr() as *const MIB_TCPTABLE_OWNER_PID) };
-    let num_entries = table.dwNumEntries as usize;
-    let first_row_ptr = table.table.as_ptr();
-
-    // Validate bounds against actual buffer size
-    let max_rows =
-        (buffer.len().saturating_sub(size_of::<u32>())) / size_of::<MIB_TCPROW_OWNER_PID>();
-    let safe_entries = num_entries.min(max_rows);
-
-    let rows = unsafe { std::slice::from_raw_parts(first_row_ptr, safe_entries) };
-    let port_be = (local_port as u32).swap_bytes() >> 16;
-
-    for row in rows {
-        if (row.dwLocalPort & 0xFFFF) == port_be && target_pids.contains(&row.dwOwningPid) {
-            return true;
+fn tcp_rows() -> Result<Vec<MIB_TCPROW_OWNER_PID>, u32> {
+    let mut size = 16_384u32;
+    for _ in 0..8 {
+        let mut buffer = vec![0u8; size as usize];
+        let result = unsafe {
+            GetExtendedTcpTable(
+                buffer.as_mut_ptr().cast(),
+                &mut size,
+                0,
+                AF_INET as u32,
+                TCP_TABLE_OWNER_PID_CONNECTIONS,
+                0,
+            )
+        };
+        if result == ERROR_INSUFFICIENT_BUFFER {
+            continue;
         }
+        if result != NO_ERROR {
+            return Err(result);
+        }
+        let offset = std::mem::offset_of!(MIB_TCPTABLE_OWNER_PID, table);
+        if buffer.len() < offset {
+            return Err(87);
+        }
+        let count = u32::from_ne_bytes(buffer[..4].try_into().unwrap()) as usize;
+        if count > (buffer.len() - offset) / size_of::<MIB_TCPROW_OWNER_PID>() {
+            return Err(87);
+        }
+        // Windows provides byte storage; avoid assuming its Rust Vec<u8> alignment.
+        return Ok((0..count)
+            .map(|index| unsafe {
+                ptr::read_unaligned(
+                    buffer
+                        .as_ptr()
+                        .add(offset + index * size_of::<MIB_TCPROW_OWNER_PID>())
+                        .cast(),
+                )
+            })
+            .collect());
     }
-
-    false
+    Err(ERROR_INSUFFICIENT_BUFFER)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::net::{TcpListener, TcpStream};
+
+    #[test]
+    fn same_client_port_on_different_local_addresses_keeps_separate_destinations() {
+        let interceptor = LauncherInterceptor::new(19080);
+        for (local, remote) in [("192.0.2.1", "198.51.100.1"), ("192.0.2.2", "198.51.100.2")] {
+            let session = NatSession {
+                client_ip: local.parse().unwrap(),
+                client_port: 50000,
+                original_dst_ip: remote.parse().unwrap(),
+                original_dst_port: 443,
+                last_seen: Instant::now(),
+            };
+            interceptor
+                .nat_table
+                .insert((session.client_ip, session.client_port), session);
+        }
+        assert_eq!(
+            interceptor.get_original_destination("192.0.2.1:50000".parse().unwrap()),
+            Some("198.51.100.1:443".parse().unwrap())
+        );
+        assert_eq!(
+            interceptor.get_original_destination("192.0.2.2:50000".parse().unwrap()),
+            Some("198.51.100.2:443".parse().unwrap())
+        );
+    }
+
+    #[test]
+    fn active_nat_survives_ten_minutes_and_matches_full_endpoints() {
+        let now = Instant::now();
+        let session = NatSession {
+            client_ip: Ipv4Addr::new(192, 0, 2, 1),
+            client_port: 50000,
+            original_dst_ip: Ipv4Addr::new(198, 51, 100, 1),
+            original_dst_port: 443,
+            last_seen: now - Duration::from_secs(1200),
+        };
+        let mut row: MIB_TCPROW_OWNER_PID = unsafe { std::mem::zeroed() };
+        row.dwLocalAddr = u32::from_ne_bytes(session.client_ip.octets());
+        row.dwLocalPort = session.client_port.to_be() as u32;
+        row.dwRemoteAddr = u32::from_ne_bytes(session.original_dst_ip.octets());
+        row.dwRemotePort = session.original_dst_port.to_be() as u32;
+        assert!(retain_session(&session, &[row], now));
+        row.dwRemotePort = 80u16.to_be() as u32;
+        assert!(!retain_session(&session, &[row], now));
+        assert!(!retain_session(&session, &[], now));
+    }
 
     #[test]
     fn test_is_port_owned_by_current_pid() {

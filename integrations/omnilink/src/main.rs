@@ -34,6 +34,7 @@ fn main() {
     if interceptor.start().is_err() {
         load_balancer.set_bonding_enabled(false);
     }
+    load_balancer.attach_interceptor(Arc::clone(&interceptor));
 
     // 4. Initialize the always-on-top, draggable OmniLink overlay.
     let overlay = OverlayController::new(Arc::clone(&load_balancer), Arc::clone(&interceptor));

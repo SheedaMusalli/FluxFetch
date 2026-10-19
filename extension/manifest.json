@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FluxFetch Download Manager",
-  "version": "1.4.0",
+  "version": "1.4.2",
   "description": "Send downloads and direct media links to the FluxFetch Windows app.",
   "minimum_chrome_version": "120",
   "permissions": [

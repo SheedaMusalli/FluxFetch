@@ -26,7 +26,10 @@ const manifestFile = path.join(root, 'extension', 'manifest.json')
 const manifest = JSON.parse(fs.readFileSync(manifestFile))
 manifest.key = publicKey.toString('base64')
 fs.writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`)
-fs.copyFileSync(path.join(root, 'build', 'icon.png'), path.join(root, 'extension', 'icon.png'))
+fs.copyFileSync(
+  path.join(root, 'build', 'extension-icon.png'),
+  path.join(root, 'extension', 'icon.png')
+)
 fs.writeFileSync(path.join(root, 'native-host', 'extension-id.txt'), id)
 fs.writeFileSync(
   path.join(root, 'native-host', 'com.fluxfetch.browser.json'),
@@ -71,7 +74,7 @@ firefoxManifest.background = { scripts: ['background.js'], type: 'module' }
 firefoxManifest.browser_specific_settings = {
   gecko: {
     id: firefoxId,
-    strict_min_version: '128.0',
+    strict_min_version: '142.0',
     data_collection_permissions: { required: ['none'] }
   }
 }
@@ -100,6 +103,9 @@ if (fs.existsSync(firefoxZipFile)) fs.unlinkSync(firefoxZipFile)
 const firefoxArchive = new AdmZip()
 firefoxArchive.addLocalFolder(firefoxDir)
 firefoxArchive.writeZip(firefoxZipFile)
+const firefoxXpiFile = path.join(out, 'FluxFetch-Firefox.xpi')
+if (fs.existsSync(firefoxXpiFile)) fs.unlinkSync(firefoxXpiFile)
+firefoxArchive.writeZip(firefoxXpiFile)
 const zipFile = path.join(out, 'FluxFetch-Chrome.zip')
 if (fs.existsSync(zipFile)) fs.unlinkSync(zipFile)
 const archive = new AdmZip()

@@ -5,9 +5,29 @@ using System.Text;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Web.Script.Serialization;
+using Microsoft.Win32;
 
 // Native Messaging framing is binary on stdin/stdout. Never log to stdout.
 class Program {
+  static string FindApp(string root) {
+    string bundled = Path.GetFullPath(Path.Combine(root, "..", "..", "fluxfetch.exe"));
+    if (File.Exists(bundled)) return bundled;
+    // A per-user helper repair can coexist with an all-users application install.
+    // Resolve only FluxFetch's registered executable; never execute a shell command.
+    foreach (RegistryKey hive in new[] { Registry.CurrentUser, Registry.LocalMachine }) {
+      using (RegistryKey key = hive.OpenSubKey(@"Software\Classes\Applications\fluxfetch.exe\shell\open\command")) {
+        string command = key == null ? null : key.GetValue("") as string;
+        if (String.IsNullOrEmpty(command) || command[0] != '"') continue;
+        int end = command.IndexOf('"', 1);
+        if (end < 2) continue;
+        string candidate = command.Substring(1, end - 1);
+        if (Path.IsPathRooted(candidate) &&
+            String.Equals(Path.GetFileName(candidate), "fluxfetch.exe", StringComparison.OrdinalIgnoreCase) &&
+            File.Exists(candidate)) return candidate;
+      }
+    }
+    throw new FileNotFoundException("The FluxFetch application is not installed.");
+  }
   static byte[] ReadExactly(Stream stream, int count) {
     byte[] bytes = new byte[count]; int offset = 0;
     while (offset < count) { int n = stream.Read(bytes, offset, count - offset); if (n == 0) throw new EndOfStreamException(); offset += n; }
@@ -52,7 +72,7 @@ class Program {
           #if FLUXFETCH_TEST_HOST
           throw;
           #else
-          string exe = Path.GetFullPath(Path.Combine(root, "..", "..", "fluxfetch.exe"));
+          string exe = FindApp(root);
           Process.Start(new ProcessStartInfo(exe) { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = Path.GetDirectoryName(exe) });
           pipe.Connect(20000);
           #endif

@@ -1,6 +1,7 @@
 import { youtubeRequest } from './youtube-background.js'
 import { pageRequest } from './page-discovery.js'
 const HOST = 'com.fluxfetch.browser'
+const isFirefox = typeof globalThis.browser?.runtime?.getBrowserInfo === 'function'
 const allowedHeaders = /^(cookie|authorization|referer|user-agent|origin|accept|accept-language)$/i
 // Automatic browser capture is intended for actual downloads, not page artwork,
 // favicons, thumbnails, and other tiny resources. Explicit context-menu sends
@@ -35,7 +36,7 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
       .catch(() => {})
   },
   { urls: ['http://*/*', 'https://*/*'] },
-  ['requestHeaders', 'extraHeaders']
+  isFirefox ? ['requestHeaders'] : ['requestHeaders', 'extraHeaders']
 )
 
 chrome.webRequest.onHeadersReceived.addListener(

@@ -30,7 +30,7 @@
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test --grep @smoke",
     "build:extension": "node scripts/build-extension.cjs",
-    "test:extension": "node scripts/verify-extension.cjs",
+    "test:extension": "node scripts/verify-extension.cjs && node scripts/verify-extension-background.cjs",
     "build:host": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-host.ps1",
     "build:installer-art": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows-icon.ps1 && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-installer-art.ps1 && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-installer-buttons.ps1",
     "build:omnilink": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-omnilink.ps1",

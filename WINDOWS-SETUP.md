@@ -4,7 +4,7 @@ FluxFetch for Windows **2.0.0**, x64. The desktop app uses Electron, and the bro
 
 ## Update an existing installation
 
-Run **fluxfetch-2.0.0-setup.exe**. Replace the contents of the folder you previously loaded as an unpacked extension with the new **FluxFetch-Chrome.zip** contents. At **edge://extensions** or **chrome://extensions**, click **Reload** on FluxFetch, then refresh your open website tabs. The extension version must be **1.4.0** and app version **2.0.0**.
+Run **fluxfetch-2.0.0-setup.exe**. Replace the contents of the folder you previously loaded as an unpacked extension with the new **FluxFetch-Chrome.zip** contents. At **edge://extensions** or **chrome://extensions**, click **Reload** on FluxFetch, then refresh your open website tabs. The extension version must be **1.4.2** and app version **2.0.0**.
 
 ## YouTube
 

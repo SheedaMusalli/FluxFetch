@@ -762,18 +762,39 @@ FunctionEnd
   ${endif}
   ${if} $FluxFetchChromeState == ${BST_CHECKED}
     WriteRegStr SHELL_CONTEXT "Software\Google\Chrome\NativeMessagingHosts\com.fluxfetch.browser" "" "$INSTDIR\resources\browser\com.fluxfetch.browser.json"
+    ${if} $installMode == "all"
+      # Edge checks the current-user registry before the machine registry. Keep
+      # that entry pointed at this installation so an old per-user host cannot
+      # shadow the newly installed all-users host.
+      WriteRegStr HKCU "Software\Google\Chrome\NativeMessagingHosts\com.fluxfetch.browser" "" "$INSTDIR\resources\browser\com.fluxfetch.browser.json"
+    ${endif}
   ${else}
     DeleteRegKey SHELL_CONTEXT "Software\Google\Chrome\NativeMessagingHosts\com.fluxfetch.browser"
+    ${if} $installMode == "all"
+      DeleteRegKey HKCU "Software\Google\Chrome\NativeMessagingHosts\com.fluxfetch.browser"
+    ${endif}
   ${endif}
   ${if} $FluxFetchEdgeState == ${BST_CHECKED}
     WriteRegStr SHELL_CONTEXT "Software\Microsoft\Edge\NativeMessagingHosts\com.fluxfetch.browser" "" "$INSTDIR\resources\browser\com.fluxfetch.browser.json"
+    ${if} $installMode == "all"
+      WriteRegStr HKCU "Software\Microsoft\Edge\NativeMessagingHosts\com.fluxfetch.browser" "" "$INSTDIR\resources\browser\com.fluxfetch.browser.json"
+    ${endif}
   ${else}
     DeleteRegKey SHELL_CONTEXT "Software\Microsoft\Edge\NativeMessagingHosts\com.fluxfetch.browser"
+    ${if} $installMode == "all"
+      DeleteRegKey HKCU "Software\Microsoft\Edge\NativeMessagingHosts\com.fluxfetch.browser"
+    ${endif}
   ${endif}
   ${if} $FluxFetchFirefoxState == ${BST_CHECKED}
     WriteRegStr SHELL_CONTEXT "Software\Mozilla\NativeMessagingHosts\com.fluxfetch.browser" "" "$INSTDIR\resources\browser\com.fluxfetch.browser.firefox.json"
+    ${if} $installMode == "all"
+      WriteRegStr HKCU "Software\Mozilla\NativeMessagingHosts\com.fluxfetch.browser" "" "$INSTDIR\resources\browser\com.fluxfetch.browser.firefox.json"
+    ${endif}
   ${else}
     DeleteRegKey SHELL_CONTEXT "Software\Mozilla\NativeMessagingHosts\com.fluxfetch.browser"
+    ${if} $installMode == "all"
+      DeleteRegKey HKCU "Software\Mozilla\NativeMessagingHosts\com.fluxfetch.browser"
+    ${endif}
   ${endif}
   ${if} $FluxFetchStartupState == ${BST_CHECKED}
     StrCpy $0 '"$appExe"'
@@ -820,6 +841,12 @@ FunctionEnd
   DeleteRegKey SHELL_CONTEXT "Software\Google\Chrome\NativeMessagingHosts\com.fluxfetch.browser"
   DeleteRegKey SHELL_CONTEXT "Software\Microsoft\Edge\NativeMessagingHosts\com.fluxfetch.browser"
   DeleteRegKey SHELL_CONTEXT "Software\Mozilla\NativeMessagingHosts\com.fluxfetch.browser"
+  # An all-users install also repairs the current user's Edge search-priority
+  # entry. Remove that override when uninstalling so it cannot point at a
+  # removed installation and shadow any remaining machine registration.
+  DeleteRegKey HKCU "Software\Google\Chrome\NativeMessagingHosts\com.fluxfetch.browser"
+  DeleteRegKey HKCU "Software\Microsoft\Edge\NativeMessagingHosts\com.fluxfetch.browser"
+  DeleteRegKey HKCU "Software\Mozilla\NativeMessagingHosts\com.fluxfetch.browser"
   DeleteRegValue SHELL_CONTEXT "Software\Microsoft\Windows\CurrentVersion\Run" "FluxFetch"
   DeleteRegKey SHELL_CONTEXT "Software\FluxFetch\Installer"
   WinShell::UninstShortcut "$oldStartMenuLink"

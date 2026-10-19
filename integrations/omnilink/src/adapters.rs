@@ -13,7 +13,7 @@ use windows_sys::Win32::NetworkManagement::IpHelper::{
 use windows_sys::Win32::NetworkManagement::Ndis::IfOperStatusUp;
 use windows_sys::Win32::Networking::WinSock::{AF_INET, SOCKADDR_IN};
 
-/// Represents a physical or tethered IPv4 network interface capable of routing traffic to Steam CDNs.
+/// Represents a physical or tethered IPv4 network interface capable of routing traffic to launcher CDNs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NetworkAdapter {
     /// Windows IPv4 Interface Index required for `setsockopt(..., IP_UNICAST_IF, ...)`

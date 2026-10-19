@@ -114,7 +114,7 @@ const TCP_FLAG_SYN: u8 = 0x02;
 const TCP_FLAG_FIN: u8 = 0x01;
 const TCP_FLAG_RST: u8 = 0x04;
 
-/// Stores original destination metadata for a redirected `steam.exe` TCP socket
+/// Stores original destination metadata for a redirected `target applications` TCP socket
 #[derive(Debug, Clone, Copy)]
 pub struct NatSession {
     pub client_ip: Ipv4Addr,
@@ -124,21 +124,23 @@ pub struct NatSession {
     pub created_at: Instant,
 }
 
-/// Transparently intercepts `steam.exe` TCP port 80/443 connections and routes them
+/// Transparently intercepts `target applications` TCP port 80/443 connections and routes them
 /// to the local OmniLink multi-NIC dispatcher.
-pub struct SteamInterceptor {
+pub struct LauncherInterceptor {
     proxy_port: u16,
     nat_table: Arc<DashMap<u16, NatSession>>,
-    steam_pids: Arc<RwLock<HashSet<u32>>>,
+    target_pids: Arc<RwLock<HashSet<u32>>>,
+    target_names: Arc<RwLock<Vec<String>>>,
     running: Arc<AtomicBool>,
 }
 
-impl SteamInterceptor {
+impl LauncherInterceptor {
     pub fn new(proxy_port: u16) -> Self {
         Self {
             proxy_port,
             nat_table: Arc::new(DashMap::with_capacity(1024)),
-            steam_pids: Arc::new(RwLock::new(HashSet::new())),
+            target_pids: Arc::new(RwLock::new(HashSet::new())),
+            target_names: Arc::new(RwLock::new(Vec::new())),
             running: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -147,16 +149,23 @@ impl SteamInterceptor {
         self.running.load(Ordering::Relaxed)
     }
 
-    /// Returns whether the PID monitor currently sees the Steam client process.
-    pub fn is_steam_process_running(&self) -> bool {
-        self.steam_pids
+    pub fn running_targets(&self) -> String {
+        self.target_names
+            .read()
+            .map(|names| names.join(", "))
+            .unwrap_or_default()
+    }
+
+    /// Returns whether the PID monitor currently sees the launcher client process.
+    pub fn is_target_process_running(&self) -> bool {
+        self.target_pids
             .read()
             .map(|pids| !pids.is_empty())
             .unwrap_or(false)
     }
 
     /// Called by `src/dispatcher.rs` when a new connection arrives on `0.0.0.0:19080`
-    /// to retrieve the true SteamPipe CDN IP and port that `steam.exe` requested.
+    /// to retrieve the true launcherPipe CDN IP and port that `target applications` requested.
     pub fn get_original_destination(&self, client_port: u16) -> Option<SocketAddr> {
         self.nat_table.get(&client_port).map(|entry| {
             SocketAddr::V4(SocketAddrV4::new(
@@ -172,16 +181,22 @@ impl SteamInterceptor {
             return Ok(());
         }
 
-        // 1. Spawn background thread to refresh `steam.exe` PIDs and prune stale NAT entries
-        let pids_clone = Arc::clone(&self.steam_pids);
+        // 1. Spawn background thread to refresh `target applications` PIDs and prune stale NAT entries
+        let pids_clone = Arc::clone(&self.target_pids);
+        let names_clone = Arc::clone(&self.target_names);
         let nat_clone = Arc::clone(&self.nat_table);
         std::thread::Builder::new()
             .name("omnilink-pid-monitor".into())
             .spawn(move || {
-                // Keep Steam process status available even if WinDivert cannot start.
+                // Keep launcher process status available even if WinDivert cannot start.
                 // The app exits as a whole when the tray command quits.
                 loop {
-                    let latest_pids = find_process_pids(&["steam.exe"]);
+                    let targets = crate::launcher_profiles::target_names();
+                    let names: Vec<&str> = targets.iter().map(String::as_str).collect();
+                    let (latest_pids, running_names) = find_target_processes(&names);
+                    if let Ok(mut guard) = names_clone.write() {
+                        *guard = running_names;
+                    }
                     if let Ok(mut guard) = pids_clone.write() {
                         *guard = latest_pids;
                     }
@@ -209,7 +224,7 @@ impl SteamInterceptor {
 
         let proxy_port = self.proxy_port;
         let nat_table = Arc::clone(&self.nat_table);
-        let steam_pids = Arc::clone(&self.steam_pids);
+        let target_pids = Arc::clone(&self.target_pids);
         let running = Arc::clone(&self.running);
 
         std::thread::Builder::new()
@@ -235,7 +250,13 @@ impl SteamInterceptor {
                     }
 
                     let pkt_slice = &mut packet[..recv_len as usize];
-                    Self::process_packet(pkt_slice, &mut addr, proxy_port, &nat_table, &steam_pids);
+                    Self::process_packet(
+                        pkt_slice,
+                        &mut addr,
+                        proxy_port,
+                        &nat_table,
+                        &target_pids,
+                    );
 
                     unsafe {
                         WinDivertHelperCalcChecksums(
@@ -265,7 +286,7 @@ impl SteamInterceptor {
         addr: &mut WinDivertAddress,
         proxy_port: u16,
         nat_table: &DashMap<u16, NatSession>,
-        steam_pids: &RwLock<HashSet<u32>>,
+        target_pids: &RwLock<HashSet<u32>>,
     ) {
         if packet.len() < size_of::<Ipv4Header>() {
             return;
@@ -284,15 +305,15 @@ impl SteamInterceptor {
         let src_ip = Ipv4Addr::from(u32::from_be(ip_hdr.src_addr));
         let dst_ip = Ipv4Addr::from(u32::from_be(ip_hdr.dst_addr));
 
-        // CASE A: Reply packet coming from our local Dispatcher (src_port == proxy_port) back to steam.exe
+        // CASE A: Reply packet coming from our local Dispatcher (src_port == proxy_port) back to target applications
         if src_port == proxy_port {
             if let Some(session) = nat_table.get(&dst_port) {
-                // Rewrite source IP/Port back to original Steam CDN IP/Port
+                // Rewrite source IP/Port back to original launcher CDN IP/Port
                 ip_hdr.src_addr = u32::from(session.original_dst_ip).to_be();
                 ip_hdr.dst_addr = u32::from(session.client_ip).to_be();
                 tcp_hdr.src_port = session.original_dst_port.to_be();
 
-                // Inject inbound back into Windows TCP stack for steam.exe
+                // Inject inbound back into Windows TCP stack for target applications
                 addr.set_outbound(false);
             }
             return;
@@ -302,12 +323,12 @@ impl SteamInterceptor {
         if dst_port == 80 || dst_port == 443 {
             // Check if this source port is already tracked in our NAT table
             let is_tracked = if let Some(session) = nat_table.get(&src_port) {
-                // Only redirect the original steam.exe socket, NEVER the dispatcher's own upstream sockets!
+                // Only redirect the original target applications socket, NEVER the dispatcher's own upstream sockets!
                 session.original_dst_ip == dst_ip && session.original_dst_port == dst_port
             } else if (tcp_hdr.flags & TCP_FLAG_SYN) != 0 {
-                // New TCP SYN packet: check if the socket belongs to steam.exe
+                // New TCP SYN packet: check if the socket belongs to target applications
                 let belongs_to_steam = {
-                    if let Ok(pids) = steam_pids.read() {
+                    if let Ok(pids) = target_pids.read() {
                         !pids.is_empty() && is_port_owned_by_pids(src_port, &pids)
                     } else {
                         false
@@ -352,10 +373,15 @@ impl SteamInterceptor {
 
 /// Enumerates active Windows processes and returns all PIDs matching target executable names.
 pub fn find_process_pids(target_exes: &[&str]) -> HashSet<u32> {
+    find_target_processes(target_exes).0
+}
+
+fn find_target_processes(target_exes: &[&str]) -> (HashSet<u32>, Vec<String>) {
     let mut pids = HashSet::new();
+    let mut names = Vec::new();
     let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
     if snapshot == INVALID_HANDLE_VALUE {
-        return pids;
+        return (pids, names);
     }
 
     let mut entry = PROCESSENTRY32W {
@@ -375,8 +401,12 @@ pub fn find_process_pids(target_exes: &[&str]) -> HashSet<u32> {
             if target_exes
                 .iter()
                 .any(|&t| t.eq_ignore_ascii_case(&exe_name))
+                && entry.th32ProcessID != std::process::id()
             {
                 pids.insert(entry.th32ProcessID);
+                if !names.contains(&exe_name) {
+                    names.push(exe_name);
+                }
             }
 
             if unsafe { Process32NextW(snapshot, &mut entry) } == 0 {
@@ -388,7 +418,8 @@ pub fn find_process_pids(target_exes: &[&str]) -> HashSet<u32> {
     unsafe {
         CloseHandle(snapshot);
     }
-    pids
+    names.sort();
+    (pids, names)
 }
 
 /// Queries the kernel TCP table (`GetExtendedTcpTable`) to check if `local_port` belongs to any PID in `target_pids`.

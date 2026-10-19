@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::net::{TcpListener, TcpStream};
 
-use crate::interceptor::SteamInterceptor;
+use crate::interceptor::LauncherInterceptor;
 use crate::load_balancer::{AdapterState, LoadBalancer};
 use crate::socket_binder::connect_via_adapter;
 
@@ -106,14 +106,14 @@ impl AsyncWrite for MeteredStream {
 pub struct BondDispatcher {
     listen_port: u16,
     load_balancer: Arc<LoadBalancer>,
-    interceptor: Arc<SteamInterceptor>,
+    interceptor: Arc<LauncherInterceptor>,
 }
 
 impl BondDispatcher {
     pub fn new(
         listen_port: u16,
         load_balancer: Arc<LoadBalancer>,
-        interceptor: Arc<SteamInterceptor>,
+        interceptor: Arc<LauncherInterceptor>,
     ) -> Self {
         Self {
             listen_port,
@@ -160,7 +160,7 @@ impl BondDispatcher {
         mut client_stream: TcpStream,
         peer_addr: SocketAddr,
         lb: Arc<LoadBalancer>,
-        interceptor: Arc<SteamInterceptor>,
+        interceptor: Arc<LauncherInterceptor>,
     ) -> io::Result<()> {
         let target_addr = if let Some(orig) = interceptor.get_original_destination(peer_addr.port())
         {

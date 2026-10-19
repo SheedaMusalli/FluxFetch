@@ -24,7 +24,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     WS_EX_TOPMOST, WS_POPUP,
 };
 
-use crate::interceptor::SteamInterceptor;
+use crate::interceptor::LauncherInterceptor;
 use crate::load_balancer::LoadBalancer;
 
 #[link(name = "user32")]
@@ -57,11 +57,14 @@ pub struct OverlayController {
     hwnd: AtomicIsize,
     visible: AtomicBool,
     load_balancer: Arc<LoadBalancer>,
-    interceptor: Arc<SteamInterceptor>,
+    interceptor: Arc<LauncherInterceptor>,
 }
 
 impl OverlayController {
-    pub fn new(load_balancer: Arc<LoadBalancer>, interceptor: Arc<SteamInterceptor>) -> Arc<Self> {
+    pub fn new(
+        load_balancer: Arc<LoadBalancer>,
+        interceptor: Arc<LauncherInterceptor>,
+    ) -> Arc<Self> {
         let controller = Arc::new(Self {
             hwnd: AtomicIsize::new(0),
             visible: AtomicBool::new(true),
@@ -538,7 +541,7 @@ unsafe fn show_overlay_context_menu(hwnd: HWND) {
     }
 }
 
-/// Renders a solid FluxFetch-themed overlay with only telemetry collected from Steam streams.
+/// Renders a solid FluxFetch-themed overlay with only telemetry collected from launcher streams.
 unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
     let mut client_rect: RECT = std::mem::zeroed();
     GetClientRect(hwnd, &mut client_rect);
@@ -554,9 +557,9 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
     let row_h = ctx.scale(BASE_ROW_HEIGHT);
     let radius = ctx.scale(BASE_CORNER_RADIUS);
     let states = ctx.controller.load_balancer.snapshot_states();
-    let steam_running = ctx.controller.interceptor.is_steam_process_running();
-    let steam_downloading = steam_running && ctx.controller.load_balancer.is_steam_downloading();
-    let total_download = if steam_downloading {
+    let launcher_running = ctx.controller.interceptor.is_target_process_running();
+    let transferring = launcher_running && ctx.controller.load_balancer.is_transferring();
+    let total_download = if transferring {
         ctx.controller.load_balancer.total_download_mbps()
     } else {
         0.0
@@ -588,7 +591,7 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
     SelectObject(mem_dc, old_brush);
     DeleteObject(border_pen as *mut _);
 
-    // Brand and Steam-only status.
+    // Brand and launcher-only status.
     draw_overlay_text(
         mem_dc,
         ctx.font_title,
@@ -603,12 +606,22 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
         DT_LEFT,
     );
 
-    let (status, status_fg, status_bg, status_border) = if !steam_running {
-        ("STEAM NOT RUNNING", muted, rgb(41, 43, 62), rgb(68, 71, 93))
-    } else if steam_downloading {
-        ("STEAM DOWNLOADING", teal, rgb(32, 59, 59), rgb(53, 99, 92))
+    let (status, status_fg, status_bg, status_border) = if !launcher_running {
+        (
+            "NO LAUNCHER RUNNING",
+            muted,
+            rgb(41, 43, 62),
+            rgb(68, 71, 93),
+        )
+    } else if transferring {
+        ("TRANSFERRING", teal, rgb(32, 59, 59), rgb(53, 99, 92))
     } else {
-        ("STEAM RUNNING", purple, rgb(43, 39, 70), rgb(82, 70, 132))
+        (
+            "LAUNCHERS RUNNING",
+            purple,
+            rgb(43, 39, 70),
+            rgb(82, 70, 132),
+        )
     };
     let badge_rect = RECT {
         left: width - pad - ctx.scale(126),
@@ -626,7 +639,7 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
         ctx,
     );
 
-    // Prominent Steam download metric.
+    // Prominent launcher download metric.
     let summary_top = pad + header_h;
     let summary_rect = RECT {
         left: pad,
@@ -641,7 +654,7 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
         right: summary_rect.left + ctx.scale(4),
         bottom: summary_rect.bottom - ctx.scale(9),
     };
-    let accent_brush = CreateSolidBrush(if steam_downloading { teal } else { purple });
+    let accent_brush = CreateSolidBrush(if transferring { teal } else { purple });
     FillRect(mem_dc, &accent_rect, accent_brush as *mut _);
     DeleteObject(accent_brush as *mut _);
     draw_overlay_text(
@@ -660,7 +673,7 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
     draw_overlay_text(
         mem_dc,
         ctx.font_metric,
-        if steam_downloading { teal } else { foreground },
+        if transferring { teal } else { foreground },
         &format_speed(total_download),
         RECT {
             left: summary_rect.left + ctx.scale(13),
@@ -681,7 +694,7 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
             mem_dc,
             ctx.font_small,
             muted,
-            &format!("STEAM CONNECTIONS  ·  {} ACTIVE", active_connections),
+            &format!("ROUTED CONNECTIONS  ·  {} ACTIVE", active_connections),
             RECT {
                 left: pad + ctx.scale(2),
                 top: details_top,
@@ -770,7 +783,7 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
                 mem_dc,
                 ctx.font_bold,
                 teal,
-                &format_speed(if steam_downloading {
+                &format_speed(if transferring {
                     state.download_mbps()
                 } else {
                     0.0

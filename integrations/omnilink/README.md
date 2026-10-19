@@ -1,6 +1,6 @@
 # OmniLink: Connection-Level Multi-Adapter Bonding for High-Speed Downloads
 
-**OmniLink** is a high-performance Windows system tray engine written in native Rust that aggregates multiple heterogeneous network connections (Ethernet, Wi-Fi, 5G USB tethering, mobile hotspots) into a single, high-bandwidth pipe for Steam game downloads and high-throughput HTTP streams.
+**OmniLink** is a high-performance Windows system tray engine written in native Rust that aggregates multiple heterogeneous network connections (Ethernet, Wi-Fi, 5G USB tethering, mobile hotspots) into a single, high-bandwidth pipe for eligible launcher downloads and high-throughput HTTP streams.
 
 ---
 
@@ -9,7 +9,7 @@
 1. **SteamPipe 1 MiB Chunked Architecture:** Steam breaks game depots into thousands of immutable ~1 MiB content-addressed files requested across 16–32 concurrent TCP sockets.
 2. **Windows Weak Host Model Bypass:** Windows normally forces 100% of outbound connections through whichever single network card has the lowest interface routing metric. OmniLink bypasses this by strictly pinning each outbound TCP connection to both the local adapter IPv4 address and its hardware interface index using the Winsock `IP_UNICAST_IF` option:
    $$\text{Adapter Isolation} = \text{bind}(\text{Local IPv4}) + \text{setsockopt}(\text{IPPROTO\_IP}, \text{IP\_UNICAST\_IF}, \text{htonl}(\text{IfIndex}))$$
-3. **Transparent Traffic Redirection:** Uses Microsoft-signed WinDivert (WFP kernel callout driver) to detect and redirect outbound TCP port 80/443 sockets originating from `steam.exe` to a local loopback dispatcher (`127.0.0.1:19080`).
+3. **Transparent Traffic Redirection:** Uses Microsoft-signed WinDivert (WFP kernel callout driver) to detect and redirect outbound TCP port 80/443 sockets originating from configured launcher processes to a local loopback dispatcher (`127.0.0.1:19080`).
 4. **Dynamic Capacity-Weighted Load Balancer:** Continuously monitors bandwidth (via lock-free `AtomicU64` counters updated on every read/write) and round-trip latency ($RTT$) per adapter, dynamically scheduling chunk sockets proportional to available headroom and evicting stalled interfaces within 3.5 seconds.
 5. **Headless Tray Application:** Runs strictly in the Windows "Show Hidden Icons" notification tray with `#![windows_subsystem = "windows"]`, providing real-time per-adapter throughput meters and control toggles.
 
@@ -114,8 +114,8 @@ OmniLink includes a sleek, floating desktop HUD overlay that stays on top of eve
 - **Opaque FluxFetch Theme:** Solid dark surfaces, purple accents, and smooth rounded corners match the FluxFetch interface.
 - **Zero Desktop Clutter (`WS_EX_TOOLWINDOW`):** Does not appear in your Windows Taskbar or Alt+Tab switcher.
 - **Fully Draggable:** Click and drag anywhere on the overlay to position it on any monitor.
-- **Steam-Only Metrics:** Shows Steam process status and download speed measured on intercepted Steam connections. Speed stays at zero when Steam is not running or no Steam download data arrived in the latest sample window.
-- **Expandable Details:** Use the arrow control to expand or collapse per-adapter Steam download speeds and bonding status.
+- **Launcher Metrics:** Shows detected launcher processes and receive speed on routed connections, averaged over about one second. The Transferring badge also covers background client requests.
+- **Expandable Details:** Use the arrow control to expand or collapse per-adapter routed receive speeds and bonding status.
 - **Easy Hide / Show:**
   - **From System Tray:** Right-click the green OmniLink tray icon $\rightarrow$ uncheck/check **`Show Desktop HUD Overlay`**.
   - **From Overlay:** Right-click the overlay directly $\rightarrow$ click **`Hide Overlay`** or **`Reset Position to Top-Right`**.
@@ -140,3 +140,5 @@ When switched to **Strict Round-Robin**, alternating curl requests will rotate a
 2. Select **Ethernet** and open **Wi-Fi** side-by-side (or open `resmon.exe` -> Network).
 3. Start or resume any game download in Steam.
 4. Watch both network adapters spike and sustain high throughput simultaneously instead of one sitting idle at 0 Kbps!
+
+For launcher presets, custom client setup and protocol limits, see [FluxFetch integration](FLUXFETCH-INTEGRATION.md).

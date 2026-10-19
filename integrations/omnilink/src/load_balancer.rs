@@ -20,17 +20,17 @@ pub struct AdapterState {
     pub active_connections: AtomicUsize,
     /// Bytes transferred during the current sampling window
     window_bytes: AtomicU64,
-    /// Steam-to-client payload bytes during the current sampling window.
-    steam_download_window_bytes: AtomicU64,
-    /// Client-to-Steam payload bytes during the current sampling window.
-    steam_upload_window_bytes: AtomicU64,
-    /// Recent Steam download samples, used to smooth the UI rate over about one second.
-    steam_download_history: Mutex<VecDeque<(u64, u64)>>,
+    /// launcher-to-client payload bytes during the current sampling window.
+    launcher_download_window_bytes: AtomicU64,
+    /// Client-to-launcher payload bytes during the current sampling window.
+    launcher_upload_window_bytes: AtomicU64,
+    /// Recent launcher download samples, used to smooth the UI rate over about one second.
+    launcher_download_history: Mutex<VecDeque<(u64, u64)>>,
     /// EWMA-smoothed throughput in bits per second
     pub current_bps: AtomicU64,
-    /// Steam download speed measured on OmniLink's intercepted Steam streams.
+    /// launcher download speed measured on OmniLink's intercepted launcher streams.
     pub download_bps: AtomicU64,
-    /// Steam upload speed measured on OmniLink's intercepted Steam streams.
+    /// launcher upload speed measured on OmniLink's intercepted launcher streams.
     pub upload_bps: AtomicU64,
     /// Highest observed throughput (bps), seeded with a 50 Mbps slow-start probe floor
     pub peak_bps: AtomicU64,
@@ -43,8 +43,8 @@ pub struct AdapterState {
 const INITIAL_PROBE_BPS: u64 = 50_000_000; // 50 Mbps initial probe floor
 const MIN_HEADROOM_BPS: u64 = 5_000_000; // 5 Mbps minimum scheduling floor
 
-/// At 500 ms per telemetry tick, this tracks live Steam rates over about one second.
-const STEAM_SPEED_HISTORY_SAMPLES: usize = 2;
+/// At 500 ms per telemetry tick, this tracks live launcher rates over about one second.
+const LAUNCHER_SPEED_HISTORY_SAMPLES: usize = 2;
 
 impl AdapterState {
     pub fn new(adapter: NetworkAdapter) -> Self {
@@ -54,10 +54,10 @@ impl AdapterState {
             healthy: AtomicBool::new(true),
             active_connections: AtomicUsize::new(0),
             window_bytes: AtomicU64::new(0),
-            steam_download_window_bytes: AtomicU64::new(0),
-            steam_upload_window_bytes: AtomicU64::new(0),
-            steam_download_history: Mutex::new(VecDeque::with_capacity(
-                STEAM_SPEED_HISTORY_SAMPLES,
+            launcher_download_window_bytes: AtomicU64::new(0),
+            launcher_upload_window_bytes: AtomicU64::new(0),
+            launcher_download_history: Mutex::new(VecDeque::with_capacity(
+                LAUNCHER_SPEED_HISTORY_SAMPLES,
             )),
             current_bps: AtomicU64::new(0),
             download_bps: AtomicU64::new(0),
@@ -76,24 +76,24 @@ impl AdapterState {
     #[inline]
     pub fn record_download_bytes(&self, bytes: usize) {
         self.record_bytes(bytes);
-        self.steam_download_window_bytes
+        self.launcher_download_window_bytes
             .fetch_add(bytes as u64, Ordering::Relaxed);
     }
 
     #[inline]
     pub fn record_upload_bytes(&self, bytes: usize) {
         self.record_bytes(bytes);
-        self.steam_upload_window_bytes
+        self.launcher_upload_window_bytes
             .fetch_add(bytes as u64, Ordering::Relaxed);
     }
 
-    fn record_steam_download_sample(&self, bytes: u64, elapsed_secs: f64) {
+    fn record_launcher_download_sample(&self, bytes: u64, elapsed_secs: f64) {
         let elapsed_ms = (elapsed_secs * 1000.0).round().max(1.0) as u64;
-        let Ok(mut history) = self.steam_download_history.lock() else {
+        let Ok(mut history) = self.launcher_download_history.lock() else {
             return;
         };
         history.push_back((bytes, elapsed_ms));
-        if history.len() > STEAM_SPEED_HISTORY_SAMPLES {
+        if history.len() > LAUNCHER_SPEED_HISTORY_SAMPLES {
             history.pop_front();
         }
         self.download_bps
@@ -161,7 +161,7 @@ pub struct LoadBalancer {
     mode: RwLock<SchedulingMode>,
     rr_counter: AtomicUsize,
     bonding_enabled: AtomicBool,
-    steam_downloading: AtomicBool,
+    transferring: AtomicBool,
 }
 
 impl LoadBalancer {
@@ -176,7 +176,7 @@ impl LoadBalancer {
             mode: RwLock::new(SchedulingMode::DynamicWeighted),
             rr_counter: AtomicUsize::new(0),
             bonding_enabled: AtomicBool::new(true),
-            steam_downloading: AtomicBool::new(false),
+            transferring: AtomicBool::new(false),
         });
 
         Self::spawn_telemetry_ticker(Arc::clone(&lb));
@@ -255,7 +255,7 @@ impl LoadBalancer {
     }
 
     pub fn total_download_mbps(&self) -> f64 {
-        if !self.is_steam_downloading() {
+        if !self.is_transferring() {
             return 0.0;
         }
         self.states
@@ -266,9 +266,9 @@ impl LoadBalancer {
             .sum()
     }
 
-    /// True only while recent Steam-stream traffic resembles a sustained file transfer.
-    pub fn is_steam_downloading(&self) -> bool {
-        self.steam_downloading.load(Ordering::Relaxed)
+    /// True while routed receive payload exists in the recent measurement window.
+    pub fn is_transferring(&self) -> bool {
+        self.transferring.load(Ordering::Relaxed)
     }
 
     pub fn total_upload_mbps(&self) -> f64 {
@@ -280,7 +280,7 @@ impl LoadBalancer {
             .sum()
     }
 
-    /// Selects the optimal network adapter for the next outbound Steam chunk socket.
+    /// Selects the optimal network adapter for the next outbound launcher chunk socket.
     pub fn select_best_adapter(&self) -> Option<Arc<AdapterState>> {
         let guard = self.states.read().unwrap();
         if guard.is_empty() {
@@ -357,16 +357,18 @@ impl LoadBalancer {
 
                         state.current_bps.store(smoothed_bps, Ordering::Relaxed);
 
-                        // This is payload metered only on sockets intercepted from steam.exe.
-                        // Store the current sample directly so all Steam rates read exactly zero
-                        // as soon as Steam sends no download payload in a sampling window.
-                        let steam_download_bytes =
-                            state.steam_download_window_bytes.swap(0, Ordering::Relaxed);
-                        let steam_upload_bytes =
-                            state.steam_upload_window_bytes.swap(0, Ordering::Relaxed);
-                        state.record_steam_download_sample(steam_download_bytes, elapsed_secs);
+                        // Count routed client payload only; the one-second rolling window
+                        // expires after two idle samples rather than retaining a stale rate.
+                        let launcher_download_bytes = state
+                            .launcher_download_window_bytes
+                            .swap(0, Ordering::Relaxed);
+                        let launcher_upload_bytes = state
+                            .launcher_upload_window_bytes
+                            .swap(0, Ordering::Relaxed);
+                        state
+                            .record_launcher_download_sample(launcher_download_bytes, elapsed_secs);
                         state.upload_bps.store(
-                            ((steam_upload_bytes as f64 * 8.0) / elapsed_secs) as u64,
+                            ((launcher_upload_bytes as f64 * 8.0) / elapsed_secs) as u64,
                             Ordering::Relaxed,
                         );
 
@@ -383,11 +385,12 @@ impl LoadBalancer {
                         }
                     }
 
-                    // Use Steam's own app-download state. Intercepted Steam traffic also includes
-                    // login, workshop, and background requests, so transfer volume alone must
-                    // never label an idle client as downloading a game.
-                    lb.steam_downloading.store(
-                        crate::steam_download_state::is_game_download_active(),
+                    // Report routed payload activity for every configured client. Background
+                    // requests are transfers too, so the UI does not call this a game download.
+                    lb.transferring.store(
+                        states
+                            .iter()
+                            .any(|state| state.download_bps.load(Ordering::Relaxed) > 0),
                         Ordering::Relaxed,
                     );
                 }
@@ -412,9 +415,9 @@ mod download_activity_tests {
 
     #[test]
     fn speed_uses_a_one_second_rolling_window_to_suppress_single_sample_spikes() {
-        let steady = VecDeque::from([(100_000, 500); STEAM_SPEED_HISTORY_SAMPLES]);
+        let steady = VecDeque::from([(100_000, 500); LAUNCHER_SPEED_HISTORY_SAMPLES]);
         let mut burst = VecDeque::from([(100_000, 500)]);
-        burst.extend([(0, 500); STEAM_SPEED_HISTORY_SAMPLES - 1]);
+        burst.extend([(0, 500); LAUNCHER_SPEED_HISTORY_SAMPLES - 1]);
 
         assert_eq!(rolling_bps(&steady), 1_600_000);
         assert_eq!(rolling_bps(&burst), 800_000);

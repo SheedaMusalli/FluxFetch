@@ -10,7 +10,7 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::WindowId;
 
 use crate::adapters::discover_routable_adapters;
-use crate::interceptor::SteamInterceptor;
+use crate::interceptor::LauncherInterceptor;
 use crate::load_balancer::{LoadBalancer, SchedulingMode};
 
 const ID_HEADER: &str = "header_status";
@@ -19,6 +19,7 @@ const ID_TOGGLE_OVERLAY: &str = "toggle_overlay";
 const ID_MODE_WEIGHTED: &str = "mode_weighted";
 const ID_MODE_RR: &str = "mode_rr";
 const ID_REFRESH_NICS: &str = "refresh_nics";
+const ID_EDIT_TARGETS: &str = "edit_targets";
 const ID_AUTOSTART: &str = "toggle_autostart";
 const ID_QUIT: &str = "quit_app";
 const ADAPTER_ID_PREFIX: &str = "nic_";
@@ -26,7 +27,7 @@ const ADAPTER_RESCAN_INTERVAL: Duration = Duration::from_secs(2);
 
 pub struct OmniLinkTrayApp {
     load_balancer: Arc<LoadBalancer>,
-    interceptor: Arc<SteamInterceptor>,
+    interceptor: Arc<LauncherInterceptor>,
     overlay: Arc<crate::overlay::OverlayController>,
     tray_icon: Option<TrayIcon>,
     header_item: MenuItem,
@@ -43,13 +44,13 @@ pub struct OmniLinkTrayApp {
 impl OmniLinkTrayApp {
     pub fn new(
         load_balancer: Arc<LoadBalancer>,
-        interceptor: Arc<SteamInterceptor>,
+        interceptor: Arc<LauncherInterceptor>,
         overlay: Arc<crate::overlay::OverlayController>,
     ) -> Self {
-        let header_item = MenuItem::with_id(ID_HEADER, "Steam: Checking status…", false, None);
+        let header_item = MenuItem::with_id(ID_HEADER, "Launchers: Checking status…", false, None);
         let toggle_bonding_item = CheckMenuItem::with_id(
             ID_TOGGLE_BONDING,
-            "Enable Multi-NIC Bonding (steam.exe)",
+            "Enable Multi-NIC Bonding (launchers)",
             true,
             true,
             None,
@@ -128,6 +129,12 @@ impl OmniLinkTrayApp {
         let quit_item = MenuItem::with_id(ID_QUIT, "Quit OmniLink", true, None);
 
         let _ = menu.append(&refresh_item);
+        let _ = menu.append(&MenuItem::with_id(
+            ID_EDIT_TARGETS,
+            "Add launcher or app…",
+            true,
+            None,
+        ));
         let _ = menu.append(&PredefinedMenuItem::separator());
         let _ = menu.append(&autostart_item);
         let _ = menu.append(&PredefinedMenuItem::separator());
@@ -175,8 +182,8 @@ impl OmniLinkTrayApp {
     }
 
     fn refresh_live_telemetry(&mut self) {
-        let steam_running = self.interceptor.is_steam_process_running();
-        let total_mbps = if steam_running {
+        let launcher_running = self.interceptor.is_target_process_running();
+        let total_mbps = if launcher_running {
             self.load_balancer.total_mbps()
         } else {
             0.0
@@ -184,19 +191,19 @@ impl OmniLinkTrayApp {
         let interceptor_ready = self.interceptor.is_running();
         let active = self.load_balancer.is_bonding_enabled() && interceptor_ready;
 
-        let status_text = if !steam_running {
-            "Steam: Not running · 0.0 Mbps".to_string()
+        let status_text = if !launcher_running {
+            "Launchers: Not running · 0.0 Mbps".to_string()
         } else if !interceptor_ready {
             format!(
-                "Steam: Running · OmniLink unavailable · {:.1} Mbps",
+                "Launchers: Running · OmniLink unavailable · {:.1} Mbps",
                 total_mbps
             )
         } else if total_mbps > 0.0 {
-            format!("Steam: Downloading · {:.1} Mbps", total_mbps)
+            format!("Launchers: Transferring · {:.1} Mbps", total_mbps)
         } else if active {
-            "Steam: Running · 0.0 Mbps".to_string()
+            "Launchers: Running · 0.0 Mbps".to_string()
         } else {
-            "Steam: Running · OmniLink paused · 0.0 Mbps".to_string()
+            "Launchers: Running · OmniLink paused · 0.0 Mbps".to_string()
         };
         self.header_item.set_text(&status_text);
         self.toggle_bonding_item.set_checked(active);
@@ -206,12 +213,16 @@ impl OmniLinkTrayApp {
             .set_checked(self.overlay.is_visible());
 
         if let Some(tray) = &self.tray_icon {
-            let _ = tray.set_tooltip(Some(status_text));
+            let _ = tray.set_tooltip(Some(format!(
+                "{}\n{}",
+                status_text,
+                self.interceptor.running_targets()
+            )));
         }
 
         for state in self.load_balancer.snapshot_states() {
             if let Some(item) = self.adapter_menu_items.get(&state.adapter.if_index) {
-                let speed = if steam_running && self.load_balancer.is_steam_downloading() {
+                let speed = if launcher_running && self.load_balancer.is_transferring() {
                     state.current_mbps()
                 } else {
                     0.0
@@ -252,6 +263,17 @@ impl OmniLinkTrayApp {
             }
             ID_REFRESH_NICS => {
                 self.refresh_adapters();
+            }
+            ID_EDIT_TARGETS => {
+                if let Some(path) = crate::launcher_profiles::config_path() {
+                    let prepared = path.parent().map(std::fs::create_dir_all).transpose();
+                    if prepared.is_ok() {
+                        if !path.exists() {
+                            let _ = std::fs::write(&path, "# Add executable names, one per line. Saved changes apply automatically.\n# Example: MyDownloadClient.exe\n");
+                        }
+                        let _ = std::process::Command::new("notepad.exe").arg(path).spawn();
+                    }
+                }
             }
             ID_AUTOSTART => {
                 let target_state = !is_autostart_enabled();

@@ -5,7 +5,7 @@ use windows_sys::Win32::Networking::WinSock::{WSAStartup, WSADATA};
 
 use omnilink_tray::adapters::discover_routable_adapters;
 use omnilink_tray::dispatcher::BondDispatcher;
-use omnilink_tray::interceptor::SteamInterceptor;
+use omnilink_tray::interceptor::LauncherInterceptor;
 use omnilink_tray::load_balancer::LoadBalancer;
 use omnilink_tray::overlay::OverlayController;
 use omnilink_tray::tray::OmniLinkTrayApp;
@@ -28,8 +28,8 @@ fn main() {
     // 2. Initialize the EWMA Dynamic Load Balancer
     let load_balancer = LoadBalancer::new(initial_adapters);
 
-    // 3. Start the WinDivert transparent packet interceptor for steam.exe
-    let interceptor = Arc::new(SteamInterceptor::new(DISPATCHER_PORT));
+    // 3. Start the WinDivert transparent packet interceptor for target applications
+    let interceptor = Arc::new(LauncherInterceptor::new(DISPATCHER_PORT));
     // Do not advertise bonding as active if Windows rejects the driver handle.
     if interceptor.start().is_err() {
         load_balancer.set_bonding_enabled(false);

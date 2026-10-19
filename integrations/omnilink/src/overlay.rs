@@ -648,7 +648,7 @@ unsafe fn render_overlay(hwnd: HWND, hdc: HDC, ctx: &WindowThreadContext) {
         mem_dc,
         ctx.font_small,
         muted,
-        "STEAM DOWNLOAD SPEED",
+        "OMNILINK ROUTED SPEED",
         RECT {
             left: summary_rect.left + ctx.scale(13),
             top: summary_rect.top + ctx.scale(5),

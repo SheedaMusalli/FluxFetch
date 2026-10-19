@@ -24,7 +24,7 @@ pub struct AdapterState {
     steam_download_window_bytes: AtomicU64,
     /// Client-to-Steam payload bytes during the current sampling window.
     steam_upload_window_bytes: AtomicU64,
-    /// Recent Steam download samples, used to smooth the UI rate over about five seconds.
+    /// Recent Steam download samples, used to smooth the UI rate over about one second.
     steam_download_history: Mutex<VecDeque<(u64, u64)>>,
     /// EWMA-smoothed throughput in bits per second
     pub current_bps: AtomicU64,
@@ -42,7 +42,9 @@ pub struct AdapterState {
 
 const INITIAL_PROBE_BPS: u64 = 50_000_000; // 50 Mbps initial probe floor
 const MIN_HEADROOM_BPS: u64 = 5_000_000; // 5 Mbps minimum scheduling floor
-const STEAM_SPEED_HISTORY_SAMPLES: usize = 10;
+
+/// At 500 ms per telemetry tick, this tracks live Steam rates over about one second.
+const STEAM_SPEED_HISTORY_SAMPLES: usize = 2;
 
 impl AdapterState {
     pub fn new(adapter: NetworkAdapter) -> Self {
@@ -409,13 +411,13 @@ mod download_activity_tests {
     use super::*;
 
     #[test]
-    fn speed_uses_a_rolling_window_to_suppress_single_sample_spikes() {
+    fn speed_uses_a_one_second_rolling_window_to_suppress_single_sample_spikes() {
         let steady = VecDeque::from([(100_000, 500); STEAM_SPEED_HISTORY_SAMPLES]);
         let mut burst = VecDeque::from([(100_000, 500)]);
         burst.extend([(0, 500); STEAM_SPEED_HISTORY_SAMPLES - 1]);
 
         assert_eq!(rolling_bps(&steady), 1_600_000);
-        assert_eq!(rolling_bps(&burst), 160_000);
+        assert_eq!(rolling_bps(&burst), 800_000);
     }
 }
 

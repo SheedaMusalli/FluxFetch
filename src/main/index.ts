@@ -163,10 +163,10 @@ function setWindowTaskbarDetails(window: BrowserWindow): void {
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    width: 760,
-    height: 560,
-    minWidth: 720,
-    minHeight: 520,
+    width: 1200,
+    height: 800,
+    minWidth: 900,
+    minHeight: 640,
     show: false,
     autoHideMenuBar: true,
     title: 'FluxFetch',

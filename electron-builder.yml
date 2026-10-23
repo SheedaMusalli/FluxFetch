@@ -18,8 +18,13 @@ extraResources:
     to: extension
   - from: extension-firefox
     to: extension-firefox
+  - from: media-tools
+    to: media-tools-ffmpeg
+    filter: ['ffmpeg.exe', 'av*.dll', 'sw*.dll', 'LICENSE.txt']
 files:
   - '!{extension,extension-firefox,native-host,media-tools,e2e,scripts,release,outputs,artifacts,test-results,playwright-report,release-settings-build,Installed,.signing}/**'
+  - '!{app-asar-codex,out-codex-*,out-youtube-*,release-codex-*,release-youtube-*}/**'
+  - '!app.asar-codex'
   - '!integrations/omnilink/**'
   - '!resources/torrent/**'
   - '!resources/torrent-engine/**'

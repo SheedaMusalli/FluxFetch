@@ -717,10 +717,9 @@ test.describe('no networks', () => {
       },
       interfacesEnv({ a: NETWORKS['a'] })
     )
-    // The scan immediately finds the simulated interface and replaces this screen. Dispatch
-    // the button event directly so Playwright doesn't wait for stability on a node that must
-    // disappear as soon as its click handler finishes.
-    await fluxfetch.page.getByRole('button', { name: 'Scan Again' }).dispatchEvent('click')
+    // The network monitor polls independently and pushes newly available interfaces to the UI.
+    // Waiting for the start screen avoids racing that update against a click on the disappearing
+    // no-networks screen.
     await expect(fluxfetch.page.getByRole('textbox', { name: 'LINK' })).toBeVisible()
   })
 })

@@ -64,7 +64,7 @@ fs.writeFileSync(
 
 // Keep a complete, load-unpacked Firefox clone beside the Chromium extension.
 const firefoxDir = path.join(root, 'extension-firefox')
-fs.rmSync(firefoxDir, { recursive: true, force: true })
+fs.mkdirSync(firefoxDir, { recursive: true })
 fs.cpSync(path.join(root, 'extension'), firefoxDir, { recursive: true })
 const firefoxManifestPath = path.join(firefoxDir, 'manifest.json')
 const firefoxManifest = JSON.parse(fs.readFileSync(firefoxManifestPath, 'utf8'))
@@ -96,7 +96,7 @@ execFileSync(
   ],
   { stdio: 'inherit' }
 )
-const out = path.join(root, 'release')
+const out = process.env.FLUXFETCH_RELEASE_DIR || path.join(root, 'release')
 fs.mkdirSync(out, { recursive: true })
 const firefoxZipFile = path.join(out, 'FluxFetch-Firefox.zip')
 if (fs.existsSync(firefoxZipFile)) fs.unlinkSync(firefoxZipFile)

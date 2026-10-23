@@ -299,8 +299,8 @@ export function HistoryScreen({
                 For the best chance of combining bandwidth, connect adapters to separate Internet
                 connections—for example Ethernet to Router A, Wi-Fi to Router B, and an Android
                 phone USB-tethered while it uses Router C. Adapters on the same router share one
-                Internet connection. Supports eligible Steam, Epic and other launcher transfers.
-                Use OmniLink&apos;s tray menu to add another app. Download servers, routing and driver
+                Internet connection. Supports eligible Steam, Epic and other launcher transfers. Use
+                OmniLink&apos;s tray menu to add another app. Download servers, routing and driver
                 support affect results, so a speed increase cannot be guaranteed.
               </TooltipContent>
             </Tooltip>

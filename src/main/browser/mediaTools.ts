@@ -14,6 +14,9 @@ const mediaToolsDirectory = (): string =>
     ? join(app.getPath('userData'), 'media-tools')
     : join(app.getAppPath(), 'media-tools')
 
+const bundledFfmpegDirectory = (): string =>
+  app.isPackaged ? join(process.resourcesPath, 'media-tools-ffmpeg') : mediaToolsDirectory()
+
 let pendingSetup: Promise<string> | null = null
 
 function expectedFiles(lock: MediaToolLock, includeFfmpeg: boolean): Array<[string, string]> {
@@ -26,6 +29,30 @@ function expectedFiles(lock: MediaToolLock, includeFfmpeg: boolean): Array<[stri
       name === 'LICENSE.txt'
     return includeFfmpeg || !ffmpegFile
   })
+}
+
+async function hasVerifiedFfmpeg(directory: string, lock: MediaToolLock): Promise<boolean> {
+  try {
+    const files = expectedFiles(lock, true).filter(
+      ([name]) =>
+        name.startsWith('av') ||
+        name.startsWith('sw') ||
+        name === 'ffmpeg.exe' ||
+        name === 'LICENSE.txt'
+    )
+    for (const [name, expected] of files) {
+      const path = join(directory, name)
+      const bytes = await readFile(path)
+      // electron-builder adds an Authenticode signature to bundled .exe resources, changing
+      // the file hash after the pinned source was verified during packaging.
+      if (name !== 'ffmpeg.exe' && createHash('sha256').update(bytes).digest('hex') !== expected)
+        return false
+      if (name === 'ffmpeg.exe' && bytes.length < 100_000) return false
+    }
+    return files.length > 0
+  } catch {
+    return false
+  }
 }
 
 async function hasVerifiedTools(
@@ -56,6 +83,12 @@ export async function ensureMediaTools(includeFfmpeg = false): Promise<string> {
     const destination = mediaToolsDirectory()
     const lockPath = join(app.getAppPath(), 'media-tools.lock.json')
     const lock = JSON.parse(await readFile(lockPath, 'utf8')) as MediaToolLock
+    if (
+      includeFfmpeg &&
+      app.isPackaged &&
+      (await hasVerifiedFfmpeg(bundledFfmpegDirectory(), lock))
+    )
+      return bundledFfmpegDirectory()
     if (await hasVerifiedTools(destination, lock, includeFfmpeg)) return destination
 
     const parent = app.isPackaged ? app.getPath('userData') : app.getAppPath()

@@ -70,12 +70,15 @@ interface Job {
   message: string
   choices: Choice[]
   formats: YoutubeFormat[]
+  inspectedAt?: number
   path?: string
   child?: ChildProcess
   activeDownloadId?: string
   startedAt?: number
   lastProgressAt?: number
 }
+
+const FORMAT_URL_MAX_AGE_MS = 5 * 60_000
 
 function validCookies(value: unknown): YouTubeCookie[] {
   if (!Array.isArray(value) || value.length > 200)
@@ -388,6 +391,7 @@ export class YoutubeDownloads {
       job.formats = (info.formats || []).filter(
         (format) => !format.has_drm && this.validMediaUrl(format.url)
       )
+      job.inspectedAt = Date.now()
       const heights = [
         ...new Set(
           job.formats
@@ -413,6 +417,20 @@ export class YoutubeDownloads {
         job.choices.push({ id: 'audio', label: 'Audio only · Original format', audioOnly: true })
       if (!job.choices.length)
         throw new Error('No downloadable formats are available for this video.')
+      if (
+        job.formats.some(
+          (format) => format.vcodec && format.vcodec !== 'none' && format.acodec === 'none'
+        ) &&
+        job.formats.some(
+          (format) => format.vcodec === 'none' && format.acodec && format.acodec !== 'none'
+        )
+      ) {
+        // Fetch the optional merger while the user is choosing a quality instead of after both
+        // large streams have already downloaded. A failure is retried by muxVideo when needed.
+        void ensureMediaTools(true).catch((error) =>
+          console.warn('[youtube] Could not prefetch the video merger:', error)
+        )
+      }
       job.state = 'ready'
       job.message = 'Choose a quality. Files save to your FluxFetch download folder.'
     } catch (error) {
@@ -465,19 +483,34 @@ export class YoutubeDownloads {
     userAgent?: string
   ): Promise<void> {
     let temporaryFolder: string | undefined
-    let reservedOutput: string | undefined
+    const reservedOutputs: string[] = []
     const childJobs: string[] = []
     try {
       if (this.isCancelled(job)) return
-      // yt-dlp only resolves signed formats. It never transfers the media bytes.
-      const info = await this.extractInfo(job, cookies, userAgent)
-      const formats = (info.formats || []).filter(
-        (format) => !format.has_drm && this.validMediaUrl(format.url)
-      )
+      // The quality list already came from yt-dlp. Reuse its short-lived signed URLs for a
+      // quick start; only repeat extraction when they are old or an authenticated retry needs it.
+      let formats = job.formats
+      const cachedFormatsAreFresh =
+        !cookies.length &&
+        !!job.inspectedAt &&
+        Date.now() - job.inspectedAt <= FORMAT_URL_MAX_AGE_MS &&
+        formats.length > 0
+      if (!cachedFormatsAreFresh) {
+        job.message = 'Refreshing YouTube stream links…'
+        const info = await this.extractInfo(job, cookies, userAgent)
+        formats = (info.formats || []).filter(
+          (format) => !format.has_drm && this.validMediaUrl(format.url)
+        )
+        job.formats = formats
+        job.inspectedAt = Date.now()
+        if (info.title) job.title = String(info.title).slice(0, 200)
+      }
       const selected = this.selectFormats(formats, choice)
       if (!selected.video && !selected.audio)
         throw new Error('That YouTube quality is no longer available. Reopen the quality menu.')
-      const finalExtension = selected.video ? 'mp4' : selected.audio?.ext || 'm4a'
+      const finalExtension = selected.video
+        ? this.videoExtension(selected.video, selected.audio)
+        : selected.audio?.ext || 'm4a'
       const finalFileName = `${this.safeStem(job.title)}.${finalExtension}`
       job.message = 'Waiting for your confirmation…'
       const confirmation = await this.confirmDownload(finalFileName, `YouTube · ${choice.label}`)
@@ -486,14 +519,22 @@ export class YoutubeDownloads {
         job.message = 'Download cancelled before any video data was transferred.'
         return
       }
+      // Bring FluxFetch forward as soon as the user accepts. Network route checks and
+      // destination preparation happen inside manager.start before its download window opens.
+      this.show()
       const settings = await loadSettings()
-      const baseDir = settings.destinationDir || app.getPath('downloads')
       const destination =
-        confirmation.destinationDir || getSuggestedDownloadDir(baseDir, finalFileName)
+        confirmation.destinationDir ||
+        (settings.destinationDir
+          ? getSuggestedDownloadDir(settings.destinationDir, finalFileName)
+          : app.getPath('videos'))
       const temporaryDir = confirmation.temporaryDir || getDefaultTemporaryDir()
       await mkdir(destination, { recursive: true })
       await mkdir(temporaryDir, { recursive: true })
       temporaryFolder = await mkdtemp(join(temporaryDir, `.fluxfetch-youtube-${randomUUID()}-`))
+      // Start optional FFmpeg provisioning before the streams finish, so a first-use merger
+      // download cannot leave completed audio and video sitting in the staging folder.
+      if (selected.video) void ensureMediaTools(true).catch(() => {})
       const names: string[] = []
       if (selected.video)
         names.push(
@@ -521,25 +562,47 @@ export class YoutubeDownloads {
       if (job.state === 'cancelled') return
       if (selected.video && selected.audio) {
         job.message = 'Combining video and audio in FluxFetch…'
-        const output = await this.uniquePath(destination, this.safeStem(job.title), 'mp4')
-        reservedOutput = output
-        await this.muxVideo(names[0], names[1], output)
-        job.path = output
-        reservedOutput = undefined
+        const output = await this.uniquePath(destination, this.safeStem(job.title), finalExtension)
+        reservedOutputs.push(output)
+        const fallbackOutput =
+          finalExtension === 'mp4'
+            ? await this.uniquePath(destination, this.safeStem(job.title), 'mkv')
+            : undefined
+        if (fallbackOutput) reservedOutputs.push(fallbackOutput)
+        const mergedPath = await this.muxVideo(names[0], names[1], output, fallbackOutput)
+        await Promise.all(
+          reservedOutputs
+            .filter((path) => path !== mergedPath)
+            .map((path) => rm(path, { force: true }).catch(() => {}))
+        )
+        job.path = mergedPath
+        reservedOutputs.length = 0
       } else if (names[0]) {
         const source = names[0]
         const isVideo = Boolean(selected.video)
-        const ext = isVideo ? 'mp4' : selected.audio?.ext || 'm4a'
+        const ext = isVideo ? finalExtension : selected.audio?.ext || 'm4a'
         const output = await this.uniquePath(destination, this.safeStem(job.title), ext)
-        reservedOutput = output
+        reservedOutputs.push(output)
         if (isVideo) {
           job.message = 'Preparing MP4 in FluxFetch…'
-          await this.muxVideo(source, undefined, output)
+          const fallbackOutput =
+            ext === 'mp4'
+              ? await this.uniquePath(destination, this.safeStem(job.title), 'mkv')
+              : undefined
+          if (fallbackOutput) reservedOutputs.push(fallbackOutput)
+          const mergedPath = await this.muxVideo(source, undefined, output, fallbackOutput)
+          await Promise.all(
+            reservedOutputs
+              .filter((path) => path !== mergedPath)
+              .map((path) => rm(path, { force: true }).catch(() => {}))
+          )
+          job.path = mergedPath
         } else {
+          await rm(output, { force: true })
           await rename(source, output)
+          job.path = output
         }
-        job.path = output
-        reservedOutput = undefined
+        reservedOutputs.length = 0
       }
       job.state = 'complete'
       job.message = `Saved with FluxFetch${job.path ? ': ' + job.path : ' to your FluxFetch download folder'}`
@@ -548,7 +611,7 @@ export class YoutubeDownloads {
         this.manager.notifyExternalCompletion(job.path.split(/[\\/]/).pop() || job.path)
       }
     } catch (error) {
-      if (reservedOutput) await rm(reservedOutput, { force: true }).catch(() => {})
+      await Promise.all(reservedOutputs.map((path) => rm(path, { force: true }).catch(() => {})))
       const reason = error instanceof Error ? error.message : String(error)
       if (cookies.length && /sign in|not a bot|cookies-from-browser/i.test(reason))
         this.fail(
@@ -610,9 +673,15 @@ export class YoutubeDownloads {
       origin: url.origin,
       headers: this.safeFormatHeaders(format.http_headers)
     }
-    // YouTube's `filesize_approx` is not safe for FluxFetch's exact-size validation. Probe the
-    // signed stream itself and use the server's real Content-Range length when available.
-    const probe = await probeUrl(url.href, streamContext)
+    // Use yt-dlp's exact filesize from the just-inspected format when it is still fresh. This
+    // avoids another network round trip before the real download window appears. Approximate
+    // sizes are never trusted; unknown or stale sizes still use the normal one-byte probe.
+    const exactSizeIsFresh =
+      Number.isSafeInteger(format.filesize) &&
+      format.filesize! >= 0 &&
+      !!job.inspectedAt &&
+      Date.now() - job.inspectedAt <= FORMAT_URL_MAX_AGE_MS
+    const probe = exactSizeIsFresh ? undefined : await probeUrl(url.href, streamContext)
     const request: StartDownloadRequest = {
       url: url.href,
       destinationDir: folder,
@@ -620,11 +689,11 @@ export class YoutubeDownloads {
       suggestedFileName: `${kind}.${(format.ext || 'bin').replace(/[^a-z0-9]/gi, '')}`,
       displayFileName,
       displayLocation: 'YouTube · preparing final file',
-      totalBytes: probe.totalBytes ?? 0,
-      supportsRanges: probe.supportsRanges,
+      totalBytes: exactSizeIsFresh ? format.filesize! : (probe?.totalBytes ?? 0),
+      supportsRanges: probe?.supportsRanges ?? exactSizeIsFresh,
       interfaceIds: (await listActiveInterfaces()).map((network) => network.id),
-      etag: null,
-      lastModified: null,
+      etag: probe?.etag ?? null,
+      lastModified: probe?.lastModified ?? null,
       browserContext: streamContext,
       suppressNotifications: true
     }
@@ -644,7 +713,6 @@ export class YoutubeDownloads {
     const id = await this.manager.start(request)
     job.activeDownloadId = id
     ids.push(id)
-    this.show()
     while (true) {
       if (this.isCancelled(job)) {
         await this.manager.cancel(id)
@@ -710,31 +778,38 @@ export class YoutubeDownloads {
     throw new Error('Could not choose an unused output file name.')
   }
 
-  private async muxVideo(video: string, audio: string | undefined, output: string): Promise<void> {
+  private videoExtension(video: YoutubeFormat, audio?: YoutubeFormat): 'mp4' | 'mkv' {
+    const videoCodec = (video.vcodec || '').toLowerCase()
+    const audioCodec = (audio?.acodec || video.acodec || '').toLowerCase()
+    const mp4Video = /^(avc1|avc3|h264|h\.264|hvc1|hev1|hevc|av01|mp4v|mpeg4)/.test(videoCodec)
+    const mp4Audio =
+      !audioCodec ||
+      audioCodec === 'none' ||
+      /^(mp4a|aac|ac-3|ac3|ec-3|eac3|alac|mp3)/.test(audioCodec)
+    return mp4Video && mp4Audio ? 'mp4' : 'mkv'
+  }
+
+  private async muxVideo(
+    video: string,
+    audio: string | undefined,
+    output: string,
+    fallbackOutput?: string
+  ): Promise<string> {
     const tools = await ensureMediaTools(true)
-    const run = (transcode: boolean): Promise<void> =>
+    const run = (target: string, transcodeAudio: boolean): Promise<void> =>
       new Promise<void>((resolve, reject) => {
         const args = ['-hide_banner', '-loglevel', 'error', '-y', '-i', video]
         if (audio) args.push('-i', audio)
         args.push('-map', '0:v:0')
         if (audio) args.push('-map', '1:a:0')
         else args.push('-map', '0:a?')
-        if (transcode)
-          args.push(
-            '-c:v',
-            'libx264',
-            '-preset',
-            'veryfast',
-            '-crf',
-            '18',
-            '-c:a',
-            'aac',
-            '-b:a',
-            '192k'
-          )
-        else args.push('-c', 'copy')
-        args.push('-movflags', '+faststart')
-        args.push(output)
+        if (transcodeAudio) {
+          // YouTube commonly pairs VP9/AV1 video with Opus audio. MP4 can keep the video
+          // bit-for-bit and convert only audio to AAC when needed.
+          args.push('-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k')
+        } else args.push('-c', 'copy')
+        if (/\.mp4$/i.test(target)) args.push('-movflags', '+faststart')
+        args.push(target)
         const child = spawn(join(tools, 'ffmpeg.exe'), args, {
           windowsHide: true,
           shell: false
@@ -747,16 +822,39 @@ export class YoutubeDownloads {
         child.once('close', (code) =>
           code === 0
             ? resolve()
-            : reject(
-                new Error(errors.trim() || 'FluxFetch could not combine these YouTube streams.')
-              )
+            : reject(new Error(errors.trim() || `FFmpeg exited with code ${code ?? 'unknown'}.`))
         )
       })
+
+    let lastError: unknown
     try {
-      await run(false)
-    } catch {
-      await run(true)
+      await run(output, false)
+      return output
+    } catch (error) {
+      lastError = error
+      await rm(output, { force: true }).catch(() => {})
     }
+    if (/\.mp4$/i.test(output)) {
+      try {
+        await run(output, true)
+        return output
+      } catch (error) {
+        lastError = error
+        await rm(output, { force: true }).catch(() => {})
+      }
+    }
+    if (fallbackOutput) {
+      try {
+        // Matroska accepts YouTube's VP9/AV1 + Opus pairs without a slow, lossy transcode.
+        await run(fallbackOutput, false)
+        return fallbackOutput
+      } catch (error) {
+        lastError = error
+        await rm(fallbackOutput, { force: true }).catch(() => {})
+      }
+    }
+    const reason = lastError instanceof Error ? lastError.message : String(lastError || '')
+    throw new Error(`FluxFetch could not combine these YouTube streams. ${reason}`.slice(0, 1200))
   }
 
   private fail(job: Job, error: unknown): void {

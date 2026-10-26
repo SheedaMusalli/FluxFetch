@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { chmod, mkdir, mkdtemp, readdir, rm } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { BLOCK, expect, FluxFetchApp, test } from './fixtures'
@@ -129,20 +129,53 @@ test.describe('destination folder problems @smoke', () => {
     serve,
     dirs
   }) => {
-    test.skip(process.platform === 'win32', 'chmod does not make a folder read-only on Windows')
     const origin = await serve({ size: 4 * BLOCK })
-    await chmod(dirs.dest, 0o555)
+    let deniedSid: string | undefined
+    let originalAcl: string | undefined
     try {
+      if (process.platform === 'win32') {
+        const user = execFileSync('whoami.exe', ['/user', '/fo', 'csv', '/nh'], {
+          encoding: 'utf8',
+          windowsHide: true
+        })
+        const sid = user.match(/S-1-[\d-]+/)?.[0]
+        if (!sid) throw new Error('Could not identify the current test user SID')
+        // Only this fixture's new directory is changed. Removing our explicit deny
+        // needs no SeRestorePrivilege; verify the ACL matches its original form.
+        originalAcl = execFileSync('icacls.exe', [dirs.dest], {
+          encoding: 'utf8',
+          windowsHide: true
+        })
+        deniedSid = sid
+        execFileSync('icacls.exe', [dirs.dest, '/deny', `*${sid}:(OI)(CI)(WD,AD)`, '/q'], {
+          windowsHide: true
+        })
+      } else await chmod(dirs.dest, 0o555)
+      await expect(
+        writeFile(join(dirs.dest, 'permission-probe'), 'must be refused')
+      ).rejects.toThrow(/EACCES|EPERM|permission|access.*denied/i)
       await expect(fluxfetch.start(origin.url(), origin.sha256)).rejects.toThrow(
-        /EACCES|permission/i
+        /EACCES|EPERM|permission|access.*denied/i
       )
       const downloads = join(dirs.userData, 'downloads')
       expect(
         existsSync(downloads) ? await readdir(downloads) : [],
         'no orphaned parts folder from the refused start'
       ).toEqual([])
+      expect(await readdir(dirs.dest), 'refused start leaves no file or reservation').toEqual([])
     } finally {
-      await chmod(dirs.dest, 0o755)
+      if (deniedSid) {
+        execFileSync('icacls.exe', [dirs.dest, '/remove:d', `*${deniedSid}`, '/q'], {
+          windowsHide: true
+        })
+        expect(
+          execFileSync('icacls.exe', [dirs.dest], { encoding: 'utf8', windowsHide: true }),
+          'original destination ACL restored'
+        ).toBe(originalAcl)
+      } else if (process.platform !== 'win32') await chmod(dirs.dest, 0o755)
     }
+    const writable = join(dirs.dest, 'permission-restored')
+    await writeFile(writable, 'restored')
+    await rm(writable)
   })
 })

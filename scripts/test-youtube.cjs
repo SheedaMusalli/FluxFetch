@@ -29,6 +29,10 @@ function fixture() {
       if (name === 'electron') return { app }
       if (name === '../settings')
         return { loadSettings: async () => ({ destinationDir: 'test-downloads' }) }
+      if (name === '../network/interfaces') return { listActiveInterfaces: async () => [] }
+      if (name === '../download/probe') return { probeUrl: async () => ({}) }
+      if (name === '../download/paths') return { getDefaultTemporaryDir: () => 'temp', getSuggestedDownloadDir: () => 'test-downloads' }
+      if (name === './mediaTools') return { ensureMediaTools: async () => 'media-tools' }
       if (name === 'node:fs/promises') return { mkdir: async () => {} }
       if (name === 'node:child_process')
         return {

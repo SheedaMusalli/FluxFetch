@@ -19,6 +19,7 @@ build/installer-buttons.obj
 # Downloaded and generated release media
 media-tools/
 resources/omnilink/
+resources/net-merge/
 resources/torrent-engine/
 resources/torrent/
 build/installer-preview.nsh

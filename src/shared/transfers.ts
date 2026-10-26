@@ -9,6 +9,8 @@ export interface TransferProgress {
   downloadedBytes: number
   downloadSpeed: number
   uploadSpeed: number
+  destinationPath?: string
+  startedAt?: number
 }
 
 export interface TransferSummary {
@@ -56,6 +58,7 @@ export function createTransferSummary(
         kind: 'torrent',
         name: item.name,
         status: item.status,
+        destinationPath: item.contentPath || item.contentDirectory || item.destinationDir,
         totalBytes: item.totalBytes,
         downloadedBytes: item.downloadedBytes,
         downloadSpeed: item.status === 'active' ? item.downloadSpeed : 0,

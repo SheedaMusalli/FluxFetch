@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.rohit267.net-merge</id>
+  <name>net-merge</name>
+  <summary>Use all your internet connections at the same time</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.rohit267">
+    <name>Rohit Mahto</name>
+  </developer>
+  <description>
+    <p>
+      net-merge uses all your network adapters together: Wi-Fi, Ethernet, USB tethering and phone hotspots.
+      Downloads, games and browsers get the speed of every connection added up.
+    </p>
+    <p>
+      It gives every new connection to one of your links, faster links get more, and a link with no internet
+      gets none. It works for every app, with no proxy settings, no server and no VPN. If it crashes, your
+      internet keeps working.
+    </p>
+    <p>
+      One connection always uses one link, so the gain comes from many connections at once, such as game
+      downloads, browsers and download managers.
+    </p>
+    <p>
+      The tray icon needs a desktop with StatusNotifierItem support. On GNOME that is the AppIndicator
+      extension, which Ubuntu already includes.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.rohit267.net-merge.desktop</launchable>
+  <provides>
+    <binary>net-merge</binary>
+  </provides>
+  <keywords>
+    <keyword>network</keyword>
+    <keyword>bandwidth</keyword>
+    <keyword>tethering</keyword>
+    <keyword>wifi</keyword>
+    <keyword>load balancing</keyword>
+  </keywords>
+  <url type="homepage">https://net-merge.org</url>
+  <url type="bugtracker">https://github.com/rohit267/net-merge/issues</url>
+  <url type="donation">https://buymeacoffee.com/rohit267</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>The tray menu shows each connection's speed and how many connections it carries</caption>
+      <image>https://raw.githubusercontent.com/rohit267/net-merge/main/docs/tray-menu.png</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.3.5" date="2026-10-24"/>
+    <release version="0.3.4" date="2026-10-23"/>
+    <release version="0.3.3" date="2026-10-20"/>
+    <release version="0.3.2" date="2026-10-19"/>
+    <release version="0.3.1" date="2026-10-19"/>
+    <release version="0.3.0" date="2026-10-17"/>
+    <release version="0.2.0" date="2026-10-16"/>
+    <release version="0.1.1" date="2026-10-14"/>
+    <release version="0.1.0" date="2026-10-12"/>
+  </releases>
+</component>

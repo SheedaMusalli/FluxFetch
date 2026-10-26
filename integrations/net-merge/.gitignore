@@ -1,0 +1,8 @@
+*.exe
+wintun.dll
+dist/
+result
+*.syso
+driver/windows/out/
+driver/windows/obj/
+.DS_Store

@@ -1,44 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useTransferSummary } from '../hooks/useTransferSummary'
 import { ArrowDownToLine, Upload } from 'lucide-react'
-import {
-  transferPercent,
-  transferRate,
-  transferStatusLabels,
-  type TransferSummary
-} from '@shared/transfers'
+import { transferPercent, transferRate, transferStatusLabels } from '@shared/transfers'
 
 export function TransferFooter({
   onTorrents
 }: {
   onTorrents: () => void
 }): React.JSX.Element | null {
-  const [summary, setSummary] = useState<TransferSummary>({
-    items: [],
-    downloadSpeed: 0,
-    uploadSpeed: 0
-  })
-  useEffect(() => {
-    let mounted = true
-    let receivedEvent = false
-    const unsubscribe = window.fluxfetch.onTransferSummaryUpdated((value) => {
-      receivedEvent = true
-      setSummary(value)
-    })
-    void window.fluxfetch
-      .getTransferSummary()
-      .then((value) => {
-        if (mounted && !receivedEvent) setSummary(value)
-      })
-      .catch(() => {})
-    return () => {
-      mounted = false
-      unsubscribe()
-    }
-  }, [])
+  const transfers = useTransferSummary()
+  const items = transfers.items.filter((item) => item.kind === 'torrent')
+  const summary = {
+    items,
+    downloadSpeed: items.reduce((sum, item) => sum + item.downloadSpeed, 0),
+    uploadSpeed: items.reduce((sum, item) => sum + item.uploadSpeed, 0)
+  }
   if (!summary.items.length) return null
   return (
     <section
-      aria-label="Live download progress"
+      aria-label="Live torrent progress"
       className="w-full rounded-lg border border-border bg-card/70 px-3 py-2 text-xs"
     >
       <div className="mb-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-muted-foreground">

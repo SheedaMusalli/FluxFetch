@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=net-merge
+GenericName=Connection merger
+Comment=Use all your network adapters at once
+Exec=net-merge tray
+Icon=net-merge
+Terminal=false
+Categories=Network;Utility;
+Keywords=network;bandwidth;tethering;wifi;ethernet;load balancing;
+StartupNotify=false

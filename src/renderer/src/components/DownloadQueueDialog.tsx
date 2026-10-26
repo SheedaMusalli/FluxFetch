@@ -86,7 +86,7 @@ export function DownloadQueueDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[520px] flex-col gap-0 overflow-hidden p-0">
+      <DialogContent className="flex max-h-[calc(100dvh-3.5rem)] w-[calc(100vw-2rem)] max-w-[520px] flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="shrink-0 gap-2 p-5 pb-4">
           <div className="flex items-center gap-2 font-mono text-[9px] tracking-[0.16em] text-muted-foreground uppercase">
             <ListPlus className="size-3.5 text-primary" />
@@ -189,7 +189,7 @@ export function DownloadQueueDialog({
           )}
         </div>
 
-        <DialogFooter className="shrink-0 px-5 py-3">
+        <DialogFooter className="m-0 shrink-0 border-t border-border bg-muted/40 px-5 py-3 flex flex-row justify-end gap-2">
           <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
             Close
           </Button>

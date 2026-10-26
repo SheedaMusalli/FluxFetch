@@ -15,6 +15,7 @@ export type Entry = Pick<
 > & {
   peakSpeedBytesPerSec: number
   avgSpeedBytesPerSec: number
+  speedBytesPerSec?: number
   tags?: string[]
   description?: string
   category?: string
@@ -43,16 +44,13 @@ export function removeEntries(ids: string[]): Entry[] {
   window.dispatchEvent(new Event(changedEvent))
   return entries
 }
-let lastSaved = { id: '', status: '', at: 0 }
+const lastSaved = new Map<string, { status: string; at: number }>()
 export function rememberDownload(download: DownloadState, peakSpeedBytesPerSec = 0): void {
   if (download.destinationPath.includes('.fluxfetch-youtube-')) return
-  if (
-    lastSaved.id === download.id &&
-    lastSaved.status === download.status &&
-    Date.now() - lastSaved.at < 2000
-  )
-    return
-  lastSaved = { id: download.id, status: download.status, at: Date.now() }
+  const saved = lastSaved.get(download.id)
+  if (saved?.status === download.status && Date.now() - saved.at < 2000) return
+  lastSaved.set(download.id, { status: download.status, at: Date.now() })
+  if (lastSaved.size > 4000) lastSaved.delete(lastSaved.keys().next().value!)
   const {
     id,
     fileName,
@@ -82,14 +80,17 @@ export function rememberDownload(download: DownloadState, peakSpeedBytesPerSec =
     bytesDownloaded,
     startedAt,
     completedAt,
-    peakSpeedBytesPerSec,
+    peakSpeedBytesPerSec: Math.max(peakSpeedBytesPerSec, previous?.peakSpeedBytesPerSec ?? 0),
+    speedBytesPerSec: download.speedBytesPerSec,
     avgSpeedBytesPerSec: activeSeconds > 0 ? bytesDownloaded / activeSeconds : 0,
     tags: previous?.tags,
     description: previous?.description,
     category: previous?.category
   })
   try {
-    localStorage.setItem(key, JSON.stringify(entries.slice(0, 2000)))
+    const active = entries.filter((entry) => ['downloading', 'paused'].includes(entry.status))
+    const inactive = entries.filter((entry) => !['downloading', 'paused'].includes(entry.status))
+    localStorage.setItem(key, JSON.stringify([...active, ...inactive.slice(0, 2000)]))
     window.dispatchEvent(new Event(changedEvent))
   } catch {
     /* Preserve app operation if storage is full. */

@@ -68,7 +68,10 @@ export function connectRoute(route: NetworkRoute, port: number): Socket {
   const { device, localAddress, remoteAddress, family } = route
   const loopback = remoteAddress === '::1' || remoteAddress.startsWith('127.')
   if (!libc || loopback) {
-    return connect({ host: remoteAddress, port, localAddress, family })
+    const socket = connect({ host: remoteAddress, port, localAddress, family })
+    socket.setNoDelay(true)
+    socket.setKeepAlive(true, 10000)
+    return socket
   }
 
   let fd: number
@@ -82,10 +85,13 @@ export function connectRoute(route: NetworkRoute, port: number): Socket {
   }
   // manualStart: a socket wrapped around an fd starts reading at once, before it's connected.
   // Bind both the device and source address: an interface may have several IPv6 addresses.
-  return new Socket({ fd, manualStart: true } as SocketConstructorOpts).connect({
+  const socket = new Socket({ fd, manualStart: true } as SocketConstructorOpts).connect({
     host: remoteAddress,
     port,
     localAddress,
     family
   })
+  socket.setNoDelay(true)
+  socket.setKeepAlive(true, 10000)
+  return socket
 }

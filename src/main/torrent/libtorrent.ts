@@ -216,6 +216,12 @@ export class TorrentManager {
   async reannounce(gid: string): Promise<void> {
     await this.action('reannounce', gid)
   }
+  async setLimit(gid: string, downloadLimit: number, uploadLimit: number): Promise<void> {
+    await this.action('setLimit', gid, {
+      downloadLimit: Math.max(0, Math.floor(downloadLimit)),
+      uploadLimit: Math.max(0, Math.floor(uploadLimit))
+    })
+  }
   async openFolder(gid: string): Promise<void> {
     const torrent = (await this.list()).find((item) => item.gid === gid)
     if (!torrent) throw new Error('That torrent is no longer in the list.')

@@ -94,7 +94,7 @@ execFileSync(
     firefoxManifestPath,
     firefoxManifestFile
   ],
-  { stdio: 'inherit' }
+  { stdio: 'inherit', env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } }
 )
 const out = process.env.FLUXFETCH_RELEASE_DIR || path.join(root, 'release')
 fs.mkdirSync(out, { recursive: true })

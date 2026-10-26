@@ -645,6 +645,7 @@ export class DownloadManager {
     this.processingQueue = true
     try {
       const current = await this.getCurrentDownload()
+      if (this.hasActiveDownload()) return
       if (current && ['downloading', 'paused', 'error'].includes(current.state.status)) return
       const next = this.queuedDownloads[0]
       if (!next || next.error || (next.scheduledAt !== null && next.scheduledAt > Date.now()))
@@ -826,21 +827,9 @@ export class DownloadManager {
       })
     )
 
-    // FluxFetch only ever tracks one current download — getCurrentDownload() always returns
-    // whichever restored runtime started most recently. Any other one restored alongside it is
-    // an orphan (most likely left over from before concurrent starts were blocked): nothing
-    // would ever look at it again, so left in `runtimes` it would sit there forever, invisibly
-    // failing every future start() with "a download is already in progress".
-    restored.sort((a, b) => b.state.startedAt - a.state.startedAt)
-    const [current, ...orphans] = restored
-
-    await Promise.all(
-      orphans.map((runtime) =>
-        this.removePersistedDownload(runtime, runtime.file.path !== current?.file.path)
-      )
-    )
-
-    if (current) {
+    // Each persisted transfer owns its own partial file and must remain visible
+    // and resumable after restart, even while newer transfers also exist.
+    for (const current of restored) {
       if (current.state.status === 'completed' && current.publicationIdentity) {
         const published = await stat(current.state.destinationPath).catch(() => null)
         if (
@@ -874,6 +863,22 @@ export class DownloadManager {
     return structuredClone({ seq: runtime.sentUpdates, state, blocks: blocks ?? runtime.blocks })
   }
 
+  /** Library snapshots omit block maps; progress windows request those by ID. */
+  async listDownloads(): Promise<DownloadUpdate[]> {
+    await this.initialization
+    return [...this.runtimes.values()]
+      .filter((runtime) => !runtime.removed)
+      .map((runtime) => {
+        const state = { ...runtime.state }
+        delete state.blocks
+        return structuredClone({
+          seq: runtime.sentUpdates,
+          state: { ...state, chunks: [], networks: [] },
+          blocks: []
+        })
+      })
+  }
+
   async listDownloadStates(): Promise<DownloadState[]> {
     await this.initialization
     return [...this.runtimes.values()]
@@ -895,6 +900,8 @@ export class DownloadManager {
         kind: 'normal' as const,
         name: state.fileName,
         status: state.status,
+        destinationPath: state.destinationPath,
+        startedAt: state.startedAt,
         totalBytes: state.totalBytes,
         downloadedBytes: state.bytesDownloaded,
         downloadSpeed: state.status === 'downloading' ? state.speedBytesPerSec : 0,
@@ -951,9 +958,7 @@ export class DownloadManager {
     pending.resolve(response)
   }
 
-  /** FluxFetch shows one download at a time (see useAppStore's currentDownload) — starting a second
-   * one while one is already running or paused would silently race it for disk I/O and
-   * scramble the renderer's single-download view as updates from both interleave. */
+  /** Explicit queues stay sequential; manually started downloads can run together. */
   private hasActiveDownload(): boolean {
     for (const runtime of this.runtimes.values()) {
       if (runtime.state.status === 'downloading' || runtime.state.status === 'paused') {
@@ -963,17 +968,16 @@ export class DownloadManager {
     return false
   }
 
-  private startingDownload = false
+  private startQueue: Promise<void> = Promise.resolve()
 
   async start(requestPayload: StartDownloadRequest): Promise<string> {
-    if (this.startingDownload)
-      throw new Error('A download is already being started. Try again shortly.')
-    this.startingDownload = true
-    try {
-      return await this.startInternal(requestPayload)
-    } finally {
-      this.startingDownload = false
-    }
+    // Serialize reservation/setup, then let independent run promises overlap.
+    const pending = this.startQueue.then(() => this.startInternal(requestPayload))
+    this.startQueue = pending.then(
+      () => {},
+      () => {}
+    )
+    return pending
   }
 
   private async startInternal(requestPayload: StartDownloadRequest): Promise<string> {
@@ -1046,9 +1050,6 @@ export class DownloadManager {
       requestPayload = { ...requestPayload, temporaryDir: getDefaultTemporaryDir() }
     }
     await this.initialization
-    if (this.hasActiveDownload()) {
-      throw new Error('A download is already in progress — finish or remove it first.')
-    }
 
     const available = await this.networks.refresh()
     const proxyUrl = await loadProxyUrl()
@@ -1572,7 +1573,8 @@ export class DownloadManager {
       )
       for (const iface of present) {
         if (!state.networks.some((network) => network.id === iface.id)) {
-          state.networks.push(newNetwork(iface, false))
+          const autoEnable = splittable(runtime.requestPayload)
+          state.networks.push(newNetwork(iface, autoEnable))
         }
       }
     }

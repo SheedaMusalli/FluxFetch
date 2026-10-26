@@ -1,5 +1,4 @@
 import { HistoryScreen } from './screens/HistoryScreen'
-import { rememberDownload } from './history'
 import type { DownloadState } from '@shared/types'
 import { useEffect, useState } from 'react'
 import { TitleBar, type TitleBarStatus } from './components/TitleBar'
@@ -113,7 +112,6 @@ function App(): React.JSX.Element {
   const interfaces = useAppStore((store) => store.interfaces)
   const interfacesStatus = useAppStore((store) => store.interfacesStatus)
   const currentDownload = useAppStore((store) => store.currentDownload)
-  const peakSpeedBytesPerSec = useAppStore((store) => store.peakSpeedBytesPerSec)
   const clearCurrentDownload = useAppStore((store) => store.clearCurrentDownload)
   const checkForUpdate = useAppStore((store) => store.checkForUpdate)
 
@@ -134,15 +132,12 @@ function App(): React.JSX.Element {
   const handleNewDownload = (): void => {
     if (downloadWindowId) {
       void window.fluxfetch.showMainWindow()
+      void window.fluxfetch.closeWindow()
       return
     }
     if (currentDownload) void window.fluxfetch.removeDownload(currentDownload.id)
     clearCurrentDownload()
   }
-
-  useEffect(() => {
-    if (currentDownload) rememberDownload(currentDownload, peakSpeedBytesPerSec)
-  }, [currentDownload, peakSpeedBytesPerSec])
 
   const noConnections = interfacesStatus === 'ready' && interfaces.length === 0
 

@@ -284,6 +284,17 @@ export interface ArchiveEntryInfo {
   name: string
   size: number
   directory: boolean
+  compressedSize?: number
+  time?: number
+  crc?: string
+  encrypted?: boolean
+}
+
+export interface ArchiveTestResult {
+  ok: boolean
+  totalFiles: number
+  totalBytes: number
+  errors: string[]
 }
 
 export interface SiteAuthInput {

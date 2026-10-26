@@ -28,7 +28,7 @@ import { testKnobs } from '../testKnobs'
 import { checkForUpdate, UPDATE_PAGE_URL } from '../updateCheck'
 import { TorrentManager } from '../torrent/libtorrent'
 import { createTransferSummary } from '../../shared/transfers'
-import { extractArchiveEntries, previewArchive } from '../archive'
+import { extractArchiveEntries, openArchiveEntry, previewArchive, testArchive } from '../archive'
 import { listSiteAuthOrigins, removeSiteAuth, saveSiteAuth, siteAuthContext } from '../siteAuth'
 import {
   remoteAccessInfo,
@@ -37,6 +37,13 @@ import {
 } from '../remoteManagement'
 import { displayProxyAddress, loadProxyUrl, saveProxyConfig } from '../proxySettings'
 import { presentWindow } from '../windowActivation'
+import {
+  guardOmniLinkLaunch,
+  netMergeControl,
+  netMergeLimit,
+  netMergeQuota,
+  netMergeStatus
+} from '../netMerge'
 
 async function openNetworkSettings(): Promise<void> {
   if (process.platform === 'win32') {
@@ -144,6 +151,22 @@ export function registerIpcHandlers(
         const download = await manager.getDownload(downloadId)
         if (!download || download.state.status !== 'completed') return
         if ((await manager.getQueuedDownloads()).length > 0) return
+        if (
+          (await manager.listTransferProgress()).some((item) =>
+            ['downloading', 'paused'].includes(item.status)
+          )
+        )
+          return
+        if (
+          torrents
+            .getProgressSnapshot()
+            .some((item) =>
+              ['active', 'metadata', 'checking', 'waiting', 'stalled', 'paused'].includes(
+                item.status
+              )
+            )
+        )
+          return
         const action = (await loadSettings()).postDownloadAction ?? 'none'
         if (action === 'none') return
         try {
@@ -184,15 +207,6 @@ export function registerIpcHandlers(
           `Copied link · ${parsed.origin}`
         )
         if (!confirmation.accepted) return
-        const current = await manager.getCurrentDownload()
-        if (current && ['downloading', 'paused', 'error'].includes(current.state.status)) {
-          await manager.queueDownloads(
-            [parsed.href],
-            confirmation.destinationDir || settings.destinationDir || app.getPath('downloads'),
-            null
-          )
-          return
-        }
         const probe = await probeUrl(parsed.href, undefined, settings.customUserAgent)
         if (/text\/html|application\/xhtml/i.test(probe.contentType ?? ''))
           throw new Error('The copied link opens a web page, not a direct download.')
@@ -390,28 +404,50 @@ export function registerIpcHandlers(
     if (process.platform !== 'win32') {
       throw new Error('OmniLink is available on Windows only.')
     }
+    return guardOmniLinkLaunch(async () => {
+      const resourceDirectory = app.isPackaged
+        ? join(process.resourcesPath, 'omnilink')
+        : join(app.getAppPath(), 'resources', 'omnilink')
+      const executable = join(resourceDirectory, 'omnilink-tray.exe')
+      const executableInfo = await stat(executable).catch(() => null)
+      const runtimeInfo = await stat(join(resourceDirectory, 'WinDivert.dll')).catch(() => null)
+      const driverInfo = await stat(join(resourceDirectory, 'WinDivert64.sys')).catch(() => null)
+      if (!executableInfo?.isFile() || !runtimeInfo?.isFile() || !driverInfo?.isFile()) {
+        throw new Error('OmniLink is not installed with FluxFetch. Rebuild the Windows package.')
+      }
+      const escapedPath = executable.replace(/'/g, "''")
+      await runSystemAction('powershell.exe', [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        `$running = Get-Process -Name 'omnilink-tray' -ErrorAction SilentlyContinue; if (-not $running) { Start-Process -FilePath '${escapedPath}' -Verb RunAs -WindowStyle Hidden }`
+      ])
+    })
+  })
+
+  handle('isOmniLinkInstalled', async () => {
+    if (process.platform !== 'win32') return false
     const resourceDirectory = app.isPackaged
       ? join(process.resourcesPath, 'omnilink')
       : join(app.getAppPath(), 'resources', 'omnilink')
     const executable = join(resourceDirectory, 'omnilink-tray.exe')
-    const executableInfo = await stat(executable).catch(() => null)
-    const runtimeInfo = await stat(join(resourceDirectory, 'WinDivert.dll')).catch(() => null)
-    const driverInfo = await stat(join(resourceDirectory, 'WinDivert64.sys')).catch(() => null)
-    if (!executableInfo?.isFile() || !runtimeInfo?.isFile() || !driverInfo?.isFile()) {
-      throw new Error('OmniLink is not installed with FluxFetch. Rebuild the Windows package.')
-    }
-    const escapedPath = executable.replace(/'/g, "''")
-    await runSystemAction('powershell.exe', [
-      '-NoProfile',
-      '-NonInteractive',
-      '-Command',
-      `$running = Get-Process -Name 'omnilink-tray' -ErrorAction SilentlyContinue; if (-not $running) { Start-Process -FilePath '${escapedPath}' -Verb RunAs -WindowStyle Hidden }`
-    ])
+    return stat(executable).then(
+      (s) => s.isFile(),
+      () => false
+    )
   })
 
-  handle('previewZip', async (_event, filePath) => previewArchive(filePath))
-  handle('extractZipEntries', async (_event, filePath, entries, destination) =>
-    extractArchiveEntries(filePath, entries, destination)
+  handle('previewZip', async (_event, filePath, password) => previewArchive(filePath, password))
+  handle('netMergeStatus', async () => netMergeStatus())
+  handle('netMergeControl', async (_event, action) => netMergeControl(action))
+  handle('netMergeLimit', async (_event, adapter, mbps) => netMergeLimit(adapter, mbps))
+  handle('netMergeQuota', async (_event, request) => netMergeQuota(request))
+  handle('extractZipEntries', async (_event, filePath, entries, destination, password) =>
+    extractArchiveEntries(filePath, entries, destination, password)
+  )
+  handle('testArchive', async (_event, filePath, password) => testArchive(filePath, password))
+  handle('openArchiveEntry', async (_event, filePath, entryName, password) =>
+    openArchiveEntry(filePath, entryName, password)
   )
 
   handle('openExternalUrl', async (_event, rawUrl) => {
@@ -490,6 +526,9 @@ export function registerIpcHandlers(
   handle('resumeTorrent', async (_event, gid) => torrents.resume(gid))
   handle('reannounceTorrent', async (_event, gid) => torrents.reannounce(gid))
   handle('openTorrentFolder', async (_event, gid) => torrents.openFolder(gid))
+  handle('setTorrentLimit', async (_event, gid, downloadLimit, uploadLimit) =>
+    torrents.setLimit(gid, downloadLimit, uploadLimit)
+  )
   handle('removeTorrent', async (_event, gid, deleteFiles) => torrents.remove(gid, deleteFiles))
   handle('listSiteAuthOrigins', async () => listSiteAuthOrigins())
   handle('saveSiteAuth', async (_event, input) => saveSiteAuth(input.origin, input))
@@ -537,6 +576,7 @@ export function registerIpcHandlers(
   handle('startDownload', async (_event, request) => manager.start(request))
 
   handle('getCurrentDownload', async () => manager.getCurrentDownload())
+  handle('listDownloads', async () => manager.listDownloads())
 
   handle('getDownload', async (_event, id) => manager.getDownload(id))
 

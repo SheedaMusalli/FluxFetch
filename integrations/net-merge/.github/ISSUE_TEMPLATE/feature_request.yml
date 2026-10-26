@@ -1,0 +1,32 @@
+name: Feature request
+description: An idea to make net-merge better
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem do you have?
+      placeholder: My phone's data plan is small, so...
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What should net-merge do?
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: Your setup
+      description: Your operating system and your connections.
+      placeholder: Windows 11, Wi-Fi from my home router, and my phone over USB.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send
+      options:
+        - label: I searched the open and closed issues.
+          required: true

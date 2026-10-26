@@ -480,11 +480,14 @@ export function SpeedTestDialog({
                 : 'Measuring upload'
 
   const mainMetric =
-    phase === 'download'
-      ? formatSpeed(metrics.download)
-      : phase === 'upload'
-        ? formatSpeed(metrics.upload)
-        : formatLatency(metrics.ping)
+    phase === 'upload'
+      ? formatSpeed(metrics.upload)
+      : formatSpeed(metrics.download)
+
+  const mainMetricLabel =
+    phase === 'upload'
+      ? 'Upload speed'
+      : 'Download speed'
 
   return (
     <Dialog open={open} onOpenChange={close}>
@@ -617,13 +620,7 @@ export function SpeedTestDialog({
                 {status === 'ready' || status === 'error' ? '—' : mainMetric}
               </div>
               <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                {phase === 'download'
-                  ? 'Download'
-                  : phase === 'upload'
-                    ? 'Upload'
-                    : phase === 'complete'
-                      ? 'Results ready'
-                      : 'Latency'}
+                {mainMetricLabel}
               </div>
               <div
                 className={`h-1 w-full max-w-xs overflow-hidden rounded-full bg-muted ${
@@ -675,7 +672,7 @@ export function SpeedTestDialog({
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <Metric label="Ping" value={formatLatency(metrics.ping)} />
+            <Metric label="Latency" value={formatLatency(metrics.ping)} />
             <Metric label="Jitter" value={formatJitter(metrics.jitter)} />
             <Metric label="Download" value={formatSpeed(metrics.download)} tone="download" />
             <Metric label="Upload" value={formatSpeed(metrics.upload)} tone="upload" />

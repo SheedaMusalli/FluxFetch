@@ -71,6 +71,7 @@ interface Job {
   choices: Choice[]
   formats: YoutubeFormat[]
   inspectedAt?: number
+  inspectPromise?: Promise<void>
   path?: string
   child?: ChildProcess
   activeDownloadId?: string
@@ -142,6 +143,7 @@ function stop(child?: ChildProcess): void {
 
 export class YoutubeDownloads {
   private jobs = new Map<string, Job>()
+  private infoCache = new Map<string, { info: VideoInfo; timestamp: number }>()
 
   constructor(
     private readonly manager: DownloadManager,
@@ -190,7 +192,17 @@ export class YoutubeDownloads {
         title,
         message: visibleMessage,
         path,
-        choices: job.choices.map(({ id, label }) => ({ id, label }))
+        choices: job.choices.map(({ id, label, height, audioOnly }) => ({
+          id,
+          label,
+          height:
+            typeof height === 'number'
+              ? height
+              : /^h(\d+)$/.exec(id)
+                ? parseInt(id.slice(1), 10)
+                : undefined,
+          audioOnly: Boolean(audioOnly || id === 'audio')
+        }))
       }
     }
   }
@@ -338,10 +350,14 @@ export class YoutubeDownloads {
         formats: []
       }
       this.jobs.set(job.id, job)
-      void this.inspect(job)
+      job.inspectPromise = this.inspect(job)
       return this.view(job)
     }
-    const job = this.jobs.get(String(message.id))
+    const job =
+      this.jobs.get(String(message.id)) ||
+      [...this.jobs.values()].findLast(
+        (j) => j.url === url && !['error', 'cancelled'].includes(j.state)
+      )
     if (!job || job.url !== url) throw new Error('Open the download menu again.')
     if (message.action === 'youtubeStatus') return this.view(job)
     if (message.action === 'youtubeCancel') {
@@ -353,6 +369,9 @@ export class YoutubeDownloads {
     }
     if (message.action !== 'youtubeDownload') throw new Error('Unknown YouTube command')
     const withCookies = message.cookies !== undefined
+    if (job.state === 'loading' && job.inspectPromise) {
+      await job.inspectPromise
+    }
     if (
       withCookies &&
       (job.state !== 'error' || !/sign in|not a bot|cookies-from-browser/i.test(job.message))
@@ -389,7 +408,7 @@ export class YoutubeDownloads {
         )
       job.title = String(info.title || 'YouTube video').slice(0, 200)
       job.formats = (info.formats || []).filter(
-        (format) => !format.has_drm && this.validMediaUrl(format.url)
+        (format) => !format.has_drm && (!format.url || this.validMediaUrl(format.url))
       )
       job.inspectedAt = Date.now()
       const heights = [
@@ -456,8 +475,14 @@ export class YoutubeDownloads {
     cookies: YouTubeCookie[] = [],
     userAgent?: string
   ): Promise<VideoInfo> {
+    if (!cookies.length && !userAgent) {
+      const cached = this.infoCache.get(job.url)
+      if (cached && Date.now() - cached.timestamp < 10 * 60_000) {
+        return cached.info
+      }
+    }
     let info: VideoInfo | undefined
-    const args = ['--dump-single-json', '--skip-download']
+    const args = ['--dump-single-json', '--skip-download', '--no-warnings', '--no-playlist']
     if (userAgent) args.push('--user-agent', userAgent)
     await this.run(
       job,
@@ -473,6 +498,9 @@ export class YoutubeDownloads {
       cookies
     )
     if (!info) throw new Error('YouTube did not return video formats. Try again.')
+    if (!cookies.length && !userAgent) {
+      this.infoCache.set(job.url, { info, timestamp: Date.now() })
+    }
     return info
   }
 
@@ -699,16 +727,6 @@ export class YoutubeDownloads {
     }
     job.message = `FluxFetch is downloading ${kind}…`
     job.lastProgressAt = Date.now()
-    let current = await this.manager.getCurrentDownload()
-    while (current && ['downloading', 'paused', 'error'].includes(current.state.status)) {
-      if (this.isCancelled(job)) throw new Error('Cancelled')
-      job.message =
-        current.state.status === 'downloading'
-          ? 'Waiting for the current FluxFetch download to finish…'
-          : 'Waiting for the current FluxFetch download to resume or be removed…'
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      current = await this.manager.getCurrentDownload()
-    }
     if (this.isCancelled(job)) throw new Error('Cancelled')
     const id = await this.manager.start(request)
     job.activeDownloadId = id
@@ -718,8 +736,9 @@ export class YoutubeDownloads {
         await this.manager.cancel(id)
         throw new Error('Cancelled')
       }
-      current = await this.manager.getCurrentDownload()
-      if (current?.state.id === id) {
+      const current = await this.manager.getDownload(id)
+      if (!current) throw new Error(`The ${kind} download was removed.`)
+      if (current.state.id === id) {
         const state = current.state
         job.message = `FluxFetch ${kind}: ${state.totalBytes > 0 ? Math.min(99, Math.floor((state.bytesDownloaded / state.totalBytes) * 100)) : '—'}% · ${(state.speedBytesPerSec / 1024 / 1024).toFixed(1)} MB/s`
         job.lastProgressAt = Date.now()

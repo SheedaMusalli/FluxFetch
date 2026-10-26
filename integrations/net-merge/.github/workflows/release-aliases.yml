@@ -1,0 +1,42 @@
+name: release-aliases
+# Adds copies of the main downloads without the version in their names, so links like
+# releases/latest/download/net-merge-linux-$(uname -m).tar.gz always give the newest release.
+# The release workflow runs it; run it by hand to add them to an older release.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, like v0.3.0
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  aliases:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload version-less copies
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          v=${TAG#v}
+          mkdir aliases && cd aliases
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p "net-merge-setup-$v.exe" -p "net-merge-$v-portable.zip" \
+            -p "net-merge-$v-macos-universal.tar.gz" -p "net-merge-$v-linux-*.tar.gz"
+          mv "net-merge-setup-$v.exe" net-merge-setup.exe
+          mv "net-merge-$v-portable.zip" net-merge-portable.zip
+          mv "net-merge-$v-macos-universal.tar.gz" net-merge-macos-universal.tar.gz
+          # Linux ones are named after what `uname -m` prints on that CPU
+          for p in x86_64:x86_64 aarch64:aarch64 armv7:armv7l armv6:armv6l i686:i686 riscv64:riscv64 \
+                   ppc64le:ppc64le s390x:s390x loongarch64:loongarch64; do
+            mv "net-merge-$v-linux-${p%%:*}.tar.gz" "net-merge-linux-${p##*:}.tar.gz"
+          done
+          ls
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber ./*

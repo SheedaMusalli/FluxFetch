@@ -10,7 +10,7 @@ import { Button } from '../components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '../components/ui/toggle-group'
 import { useLatencyPolling } from '../hooks/useNetworks'
 import { useAppStore } from '../store/useAppStore'
-import { describeError, formatBytes, toDisplayPath } from '../utils/format'
+import { describeError, formatFileSize, toDisplayPath } from '../utils/format'
 
 type StreamsChoice = 'auto' | number
 /** Streams per network the user can pick instead of Auto. */
@@ -157,7 +157,7 @@ export function IdleScreen({
         : '1 stream: the server can’t split this file'
     )
   }
-  if (ready && ready.totalBytes !== null) footerParts.push(formatBytes(ready.totalBytes))
+  if (ready && ready.totalBytes !== null) footerParts.push(formatFileSize(ready.totalBytes))
 
   let subnetConflict: { subnet: string; names: string[] } | null = null
   if (selectedInterfaceIds.length > 1) {
@@ -343,7 +343,7 @@ export function IdleScreen({
           />
           {ready && ready.totalBytes !== null && (
             <div className="shrink-0 whitespace-nowrap font-mono text-[11px] font-medium text-muted-foreground">
-              {formatBytes(ready.totalBytes)} (est.)
+              {formatFileSize(ready.totalBytes)} (est.)
             </div>
           )}
         </div>

@@ -18,6 +18,8 @@ export interface TorrentTransfer {
   uploadedBytes: number
   downloadSpeed: number
   uploadSpeed: number
+  downloadLimit?: number
+  uploadLimit?: number
   peers: number
   seeders: number
   destinationDir: string

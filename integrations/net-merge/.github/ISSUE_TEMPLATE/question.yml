@@ -1,0 +1,25 @@
+name: Question
+description: Ask how something works or if something is possible
+labels: [question]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: Your setup
+      description: Your operating system, your net-merge version and your connections.
+      placeholder: Windows 11, net-merge 0.3.4, Wi-Fi from my home router, and my phone over USB.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send
+      options:
+        - label: I read the README's Troubleshooting section and searched the issues.
+          required: true

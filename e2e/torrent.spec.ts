@@ -78,7 +78,7 @@ test('built-in torrent engine accepts a .torrent file and exposes its state in F
     .getByRole('dialog')
     .getByRole('button', { name: 'Close', exact: true })
     .click()
-  const footer = fluxfetch.page.getByRole('region', { name: 'Live download progress' })
+  const footer = fluxfetch.page.getByRole('region', { name: 'Live torrent progress' })
   await expect(footer.getByRole('button', { name: /Torrent: test,/ })).toBeVisible()
   await expect(footer.getByRole('progressbar', { name: 'test progress' })).toHaveAttribute(
     'aria-valuenow',

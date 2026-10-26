@@ -1,0 +1,55 @@
+# Built by scripts/build-linux.sh: VERSION=0.2.1 ARCH=amd64 nfpm package -p deb -f packaging/nfpm.yaml
+name: net-merge
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+section: net
+priority: optional
+maintainer: Rohit Mahto <rohit@champdev.me>
+vendor: Rohit Mahto
+homepage: https://net-merge.org
+license: MIT
+description: |
+  Use all your network adapters at once.
+  net-merge spreads every new connection over Wi-Fi, Ethernet and phone
+  tethers, so downloads, games and browsers get the combined speed. It needs
+  no server and no VPN. The tray icon needs StatusNotifierItem support.
+contents:
+  - src: ./net-merge
+    dst: /usr/bin/net-merge
+    file_info:
+      mode: 0755
+  - src: packaging/io.github.rohit267.net-merge.desktop
+    dst: /usr/share/applications/io.github.rohit267.net-merge.desktop
+  - src: packaging/io.github.rohit267.net-merge.metainfo.xml
+    dst: /usr/share/metainfo/io.github.rohit267.net-merge.metainfo.xml
+  - src: packaging/icons/hicolor
+    dst: /usr/share/icons/hicolor
+    type: tree
+  - src: LICENSE
+    dst: /usr/share/doc/net-merge/copyright
+    packager: deb
+  - src: LICENSE
+    dst: /usr/share/licenses/net-merge/LICENSE
+    packager: rpm
+  - src: LICENSE
+    dst: /usr/share/licenses/net-merge/LICENSE
+    packager: apk
+  - src: LICENSE
+    dst: /usr/share/licenses/net-merge/LICENSE
+    packager: archlinux
+scripts:
+  postinstall: packaging/postinstall.sh
+overrides:
+  deb:
+    depends:
+      - libcap2-bin
+  rpm:
+    recommends:
+      - libcap
+  apk:
+    depends:
+      - libcap-utils
+  archlinux:
+    depends:
+      - libcap

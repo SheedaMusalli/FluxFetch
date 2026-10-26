@@ -1,0 +1,98 @@
+name: Bug report
+description: Something does not work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! Please fill in every box, so we can help you faster.
+  - type: input
+    id: version
+    attributes:
+      label: net-merge version
+      description: Run `net-merge version`, or look at the line above *Quit* in the tray menu. On Android, the version is in Settings, Apps, net-merge.
+      placeholder: "0.3.4"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS
+        - Linux
+        - Android
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version
+      placeholder: Windows 11 24H2, macOS 15.3, Ubuntu 24.04, Android 15
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - Install script
+        - net-merge-setup.exe
+        - winget
+        - Homebrew
+        - Linux package (apt, dnf, zypper, apk, pacman)
+        - Portable zip or by hand
+        - Android APK
+        - Built from source
+    validations:
+      required: true
+  - type: textarea
+    id: links
+    attributes:
+      label: Your connections
+      description: How does each one reach the internet?
+      placeholder: Wi-Fi from my home router, and my phone on mobile data over USB.
+    validations:
+      required: true
+  - type: textarea
+    id: list
+    attributes:
+      label: Output of `net-merge list`
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead. Copy the exact error text.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: |
+        The last 30 lines of the log file. If you started net-merge from a terminal, copy what the terminal shows instead.
+        - Windows: press Win+R, paste `%LOCALAPPDATA%\net-merge\net-merge.log` and press Enter
+        - macOS: `/var/run/net-merge/net-merge.log`
+        - Linux: `~/.cache/net-merge/net-merge.log`
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: Output of `net-merge status` (while it is on)
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send
+      options:
+        - label: I use the latest version.
+          required: true
+        - label: I searched the open and closed issues.
+          required: true

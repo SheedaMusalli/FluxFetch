@@ -1,6 +1,7 @@
 import type {
   AppSettings,
   ArchiveEntryInfo,
+  ArchiveTestResult,
   SiteAuthInput,
   DownloadConfirmationResponse,
   DownloadUpdate,
@@ -38,10 +39,23 @@ export interface IpcContract {
   openFile: { args: [filePath: string]; result: void }
   trashFile: { args: [filePath: string]; result: void }
   runOmniLink: { args: []; result: void }
-  previewZip: { args: [filePath: string]; result: ArchiveEntryInfo[] }
+  isOmniLinkInstalled: { args: []; result: boolean }
+  netMergeStatus: { args: []; result: import('./netMerge').NetMergeStatus }
+  netMergeControl: { args: [action: 'start' | 'stop']; result: void }
+  netMergeLimit: { args: [adapter: string, mbps: number]; result: void }
+  netMergeQuota: { args: [request: import('./netMerge').NetMergeQuotaRequest]; result: void }
+  previewZip: { args: [filePath: string, password?: string]; result: ArchiveEntryInfo[] }
   extractZipEntries: {
-    args: [filePath: string, entries: string[], destination: string]
+    args: [filePath: string, entries: string[], destination: string, password?: string]
     result: number
+  }
+  testArchive: {
+    args: [filePath: string, password?: string]
+    result: ArchiveTestResult
+  }
+  openArchiveEntry: {
+    args: [filePath: string, entryName: string, password?: string]
+    result: void
   }
   openExternalUrl: { args: [url: string]; result: void }
   addTorrent: { args: [source: string]; result: boolean }
@@ -51,6 +65,7 @@ export interface IpcContract {
   resumeTorrent: { args: [gid: string]; result: void }
   reannounceTorrent: { args: [gid: string]; result: void }
   openTorrentFolder: { args: [gid: string]; result: void }
+  setTorrentLimit: { args: [gid: string, downloadLimit: number, uploadLimit: number]; result: void }
   removeTorrent: { args: [gid: string, deleteFiles: boolean]; result: void }
   listSiteAuthOrigins: { args: []; result: string[] }
   saveSiteAuth: { args: [input: SiteAuthInput]; result: void }
@@ -74,6 +89,7 @@ export interface IpcContract {
   cancelQueuedDownload: { args: [id: string]; result: void }
   startDownload: { args: [request: StartDownloadRequest]; result: string }
   getCurrentDownload: { args: []; result: DownloadUpdate | null }
+  listDownloads: { args: []; result: DownloadUpdate[] }
   getDownload: { args: [id: string]; result: DownloadUpdate | null }
   openDownloadWindow: { args: [id: string]; result: void }
   showMainWindow: { args: [retryUrl?: string]; result: void }

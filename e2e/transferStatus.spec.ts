@@ -37,14 +37,16 @@ test('library status cards count and filter paused, cancelled and failed downloa
   }
 })
 
-test('regular download progress is live in the library footer and clears on cancel', async ({
+test('regular download progress is live in its library row without a footer', async ({
   fluxfetch,
   serve
 }) => {
   const origin = await serve({ size: 32 * BLOCK, sharedBytesPerSecond: 128 * 1024 })
   const id = await fluxfetch.start(origin.url(), origin.sha256, { fileName: 'Footer transfer.bin' })
-  const footer = fluxfetch.page.getByRole('region', { name: 'Live download progress' })
-  await expect(footer.getByRole('button', { name: /Download: Footer transfer.bin,/ })).toBeVisible()
+  const footer = fluxfetch.page.getByRole('region', { name: 'Live torrent progress' })
+  const row = fluxfetch.page.locator(`[data-download-id="${id}"]`)
+  await expect(row.getByRole('progressbar', { name: 'Footer transfer.bin progress' })).toBeVisible()
+  await expect(footer).toHaveCount(0)
   await expect
     .poll(
       async () =>
@@ -56,8 +58,9 @@ test('regular download progress is live in the library footer and clears on canc
     .poll(async () => (await fluxfetch.api.getTransferSummary()).downloadSpeed)
     .toBeGreaterThan(0)
   await fluxfetch.api.pauseDownload(id)
-  await expect(footer.getByText('Paused', { exact: true })).toBeVisible()
+  await expect(row.getByRole('button', { name: 'Resume Footer transfer.bin' })).toBeVisible()
   expect((await fluxfetch.api.getTransferSummary()).downloadSpeed).toBe(0)
   await fluxfetch.api.cancelDownload(id)
+  await expect(row.getByRole('progressbar')).toHaveCount(0)
   await expect(footer).toHaveCount(0)
 })

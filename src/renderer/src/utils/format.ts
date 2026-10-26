@@ -13,6 +13,23 @@ export function formatBytes(bytes: number): string {
   return `${value.toFixed(exponent === 0 ? 0 : 1)} ${UNITS[exponent]}`
 }
 
+export function formatFileSize(bytes: number | null | undefined): string {
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes <= 0) return '—'
+  const MB = 1024 * 1024
+  const GB = 1024 * MB
+  if (bytes > 1023 * MB) {
+    const val = bytes / GB
+    return `${val >= 10 ? val.toFixed(1) : val.toFixed(2)} GB`
+  }
+  if (bytes >= MB) {
+    return `${(bytes / MB).toFixed(1)} MB`
+  }
+  if (bytes >= 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`
+  }
+  return `${bytes} B`
+}
+
 export function formatSpeed(bytesPerSec: number): string {
   return `${formatBytes(bytesPerSec)}/s`
 }

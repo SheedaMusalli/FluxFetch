@@ -26,10 +26,13 @@ files:
   - '!{app-asar-codex,out-codex-*,out-youtube-*,release-codex-*,release-youtube-*}/**'
   - '!app.asar-codex'
   - '!integrations/omnilink/**'
+  - '!integrations/net-merge/**'
+  - '!resources/net-merge/**'
   - '!resources/torrent/**'
   - '!resources/torrent-engine/**'
   - '!integrations/torrent-engine/**'
   - '!resources/omnilink/**'
+  - '!resources/archive-tools/**'
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
@@ -49,6 +52,10 @@ win:
   extraResources:
     - from: resources/omnilink
       to: omnilink
+    - from: resources/net-merge
+      to: net-merge
+    - from: resources/archive-tools
+      to: archive-tools
     - from: resources/torrent-engine
       to: torrent
       filter: ['**/*', '!**/__pycache__/**', '!**/*.pyi', '!**/pythonw.exe']

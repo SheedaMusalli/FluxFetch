@@ -19,18 +19,38 @@ const eta = (value: number | null | undefined): string =>
       : value < 3600
         ? `${Math.ceil(value / 60)} min`
         : `${(value / 3600).toFixed(1)} hours`
-const tabs = ['Overview', 'Files', 'Trackers', 'Peers'] as const
+const tabs = ['Overview', 'Speed limits', 'Files', 'Trackers', 'Peers'] as const
 
 export function TorrentDetails({
   torrent,
   onOpenFolder,
-  onReannounce
+  onReannounce,
+  onSetLimit
 }: {
   torrent: TorrentTransfer
   onOpenFolder: () => void
   onReannounce: () => void
+  onSetLimit?: (gid: string, downloadLimit: number, uploadLimit: number) => Promise<void>
 }): React.JSX.Element {
   const [tab, setTab] = useState<(typeof tabs)[number]>('Overview')
+  const [downloadLimitInput, setDownloadLimitInput] = useState<string>(
+    torrent.downloadLimit ? String(Math.round(torrent.downloadLimit / 1024)) : ''
+  )
+  const [uploadLimitInput, setUploadLimitInput] = useState<string>(
+    torrent.uploadLimit ? String(Math.round(torrent.uploadLimit / 1024)) : ''
+  )
+  const [limitNotice, setLimitNotice] = useState<string | null>(null)
+
+  const handleApplyLimits = async (): Promise<void> => {
+    if (!onSetLimit) return
+    const downKb = Number(downloadLimitInput)
+    const upKb = Number(uploadLimitInput)
+    const downBytes = Number.isFinite(downKb) && downKb > 0 ? Math.round(downKb * 1024) : 0
+    const upBytes = Number.isFinite(upKb) && upKb > 0 ? Math.round(upKb * 1024) : 0
+    await onSetLimit(torrent.gid, downBytes, upBytes)
+    setLimitNotice('Speed limits updated')
+    setTimeout(() => setLimitNotice(null), 3000)
+  }
   return (
     <div className="mt-2 rounded-lg border border-border bg-background/50 p-3">
       <div className="mb-3 flex flex-wrap items-center gap-1">
@@ -69,6 +89,18 @@ export function TorrentDetails({
                 [
                   'Piece selection',
                   torrent.sequentialDownload ? 'Sequential' : 'Normal swarm download'
+                ],
+                [
+                  'Download limit',
+                  torrent.downloadLimit
+                    ? `${(torrent.downloadLimit / 1024).toFixed(0)} KB/s`
+                    : 'Unlimited'
+                ],
+                [
+                  'Upload limit',
+                  torrent.uploadLimit
+                    ? `${(torrent.uploadLimit / 1024).toFixed(0)} KB/s`
+                    : 'Unlimited'
                 ]
               ].map(([label, value]) => (
                 <div key={label}>
@@ -95,6 +127,102 @@ export function TorrentDetails({
               </p>
             ))}
           </>
+        )}
+        {tab === 'Speed limits' && (
+          <div className="space-y-4 py-1">
+            <div className="rounded-lg border border-border bg-background/60 p-3">
+              <label className="block text-xs font-semibold text-foreground">
+                Download speed limit (KB/s)
+              </label>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                Leave empty or 0 for unlimited transfer rate.
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="50"
+                  placeholder="Unlimited (0)"
+                  value={downloadLimitInput}
+                  onChange={(e) => setDownloadLimitInput(e.target.value)}
+                  className="w-36 rounded-md border border-input bg-background px-2.5 py-1.5 font-mono text-xs text-foreground focus:border-primary focus:outline-none"
+                />
+                <span className="font-mono text-xs text-muted-foreground">KB/s</span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {[
+                  ['0', 'Unlimited'],
+                  ['500', '500 KB/s'],
+                  ['1024', '1 MB/s'],
+                  ['2048', '2 MB/s'],
+                  ['5120', '5 MB/s'],
+                  ['10240', '10 MB/s']
+                ].map(([val, lbl]) => (
+                  <Button
+                    key={val}
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    className="h-6 text-[10px]"
+                    onClick={() => setDownloadLimitInput(val === '0' ? '' : val)}
+                  >
+                    {lbl}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-background/60 p-3">
+              <label className="block text-xs font-semibold text-foreground">
+                Upload speed limit (KB/s)
+              </label>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                Leave empty or 0 for unlimited seeding rate.
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="50"
+                  placeholder="Unlimited (0)"
+                  value={uploadLimitInput}
+                  onChange={(e) => setUploadLimitInput(e.target.value)}
+                  className="w-36 rounded-md border border-input bg-background px-2.5 py-1.5 font-mono text-xs text-foreground focus:border-primary focus:outline-none"
+                />
+                <span className="font-mono text-xs text-muted-foreground">KB/s</span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {[
+                  ['0', 'Unlimited'],
+                  ['250', '250 KB/s'],
+                  ['500', '500 KB/s'],
+                  ['1024', '1 MB/s'],
+                  ['2048', '2 MB/s'],
+                  ['5120', '5 MB/s']
+                ].map(([val, lbl]) => (
+                  <Button
+                    key={val}
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    className="h-6 text-[10px]"
+                    onClick={() => setUploadLimitInput(val === '0' ? '' : val)}
+                  >
+                    {lbl}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button type="button" size="sm" onClick={() => void handleApplyLimits()}>
+                Apply speed limits
+              </Button>
+              {limitNotice && (
+                <span className="text-xs text-emerald-400 font-medium">{limitNotice}</span>
+              )}
+            </div>
+          </div>
         )}
         {tab === 'Files' &&
           (torrent.files?.length ? (

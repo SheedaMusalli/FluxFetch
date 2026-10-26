@@ -1,6 +1,7 @@
 {
   "name": "fluxfetch",
-  "version": "2.0.1",
+  "version": "3.0.0",
+  "packageManager": "traversal@1.0.0",
   "description": "Speed up downloads by combining multiple network connections in parallel",
   "main": "./out/main/index.js",
   "author": {
@@ -22,7 +23,11 @@
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "install-electron && electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
-    "build:win": "npm run build:omnilink && npm run build:torrent && npm run build:extension && npm run build:host && npm run build:installer-art && npm run build && electron-builder --win --x64",
+    "build:win": "npm run build:omnilink && npm run build:net-merge && npm run build:torrent && npm run build:extension && npm run build:host && npm run build:installer-art && npm run build && electron-builder --win --x64",
+    "build:net-merge": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-net-merge.ps1",
+    "test:net-merge": "node scripts/verify-net-merge.cjs",
+    "build:net-merge-driver": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-net-merge-driver.ps1",
+    "sign:net-merge": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sign-net-merge.ps1",
     "build:torrent": "node scripts/prepare-torrent-engine.cjs",
     "test:torrent-engine": "resources\\torrent-engine\\runtime\\python.exe -c \"import runpy; runpy.run_path('scripts/verify-torrent-engine.py',run_name='__main__')\"",
     "build:mac": "electron-vite build && electron-builder --mac",

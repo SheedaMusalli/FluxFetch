@@ -51,6 +51,23 @@ async function checkFile(
   return probe
 }
 
+function formatFileSize(bytes: number | null | undefined): string {
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes <= 0) return ''
+  const MB = 1024 * 1024
+  const GB = 1024 * MB
+  if (bytes > 1023 * MB) {
+    const val = bytes / GB
+    return `${val >= 10 ? val.toFixed(1) : val.toFixed(2)} GB`
+  }
+  if (bytes >= MB) {
+    return `${(bytes / MB).toFixed(1)} MB`
+  }
+  if (bytes >= 1024) {
+    return `${Math.round(bytes / 1024)} KB`
+  }
+  return `${bytes} B`
+}
+
 /** A local named pipe, never an HTTP server accessible to websites. */
 export async function startBrowserBridge(
   manager: DownloadManager,
@@ -93,24 +110,29 @@ export async function startBrowserBridge(
     return result
   }
   async function tick(): Promise<void> {
-    const current = await manager.getCurrentDownload()
+    const downloads = await manager.listDownloads()
     // Recover a crash between the manager committing the download and the queue saving its ID.
-    const adopted = entries.find((entry) => entry.id === current?.state.browserRequestId)
-    if (adopted && !adopted.downloadId && current) {
-      adopted.downloadId = current.state.id
-      await save()
-    }
-    const tracked = entries.find((entry) => entry.downloadId)
-    if (tracked) {
-      if (current && current.state.id === tracked.downloadId) {
-        if (['downloading', 'paused', 'error'].includes(current.state.status)) return
+    let changed = false
+    for (const download of downloads) {
+      const adopted = entries.find((entry) => entry.id === download.state.browserRequestId)
+      if (adopted && !adopted.downloadId) {
+        adopted.downloadId = download.state.id
+        changed = true
       }
-      entries = entries.filter((entry) => entry !== tracked)
-      await save()
     }
-    if (current && ['downloading', 'paused', 'error'].includes(current.state.status)) return
-    // A video and its audio are separate native transfers. Keep the browser queue from taking
-    // the single FluxFetch transfer slot between those two streams.
+    const remaining = entries.filter(
+      (entry) =>
+        !entry.downloadId ||
+        downloads.some(
+          (download) =>
+            download.state.id === entry.downloadId &&
+            ['downloading', 'paused', 'error'].includes(download.state.status)
+        )
+    )
+    if (remaining.length !== entries.length) changed = true
+    entries = remaining
+    if (changed) await save()
+    // Media transfers retain their own browser confirmation and processing sequence.
     if (youtube.isBusy()) return
     const next = entries.find((entry) => !entry.error && !entry.downloadId)
     if (!next) return
@@ -249,7 +271,7 @@ export async function startBrowserBridge(
     const size = entry.probe?.totalBytes
     const confirmation = await confirmDownload(
       displayName,
-      `From ${url.origin}${size ? ` · ${size} bytes` : ''}`
+      `From ${url.origin}${size ? ` · ${formatFileSize(size)}` : ''}`
     )
     if (!confirmation.accepted) return { ok: true, cancelled: true }
     if (!isConnected()) return { ok: true, cancelled: true }

@@ -1,5 +1,4 @@
-import { cp, readFile, rm, truncate, writeFile } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
+import { readFile, rm, truncate, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { BLOCK, expect, test } from './fixtures'
 
@@ -89,30 +88,27 @@ test.describe('persisted state on disk @smoke', () => {
     await fluxfetch.waitForStatus('completed')
   })
 
-  test('two saved downloads: only the newest is restored, the other is removed', async ({
+  test('two saved downloads both restore paused and resume independently', async ({
     fluxfetch,
-    serve,
-    dirs
+    serve
   }) => {
-    const { id } = await pausedDownload(fluxfetch, serve)
+    const first = await pausedDownload(fluxfetch, serve, 1)
+    const second = await pausedDownload(fluxfetch, serve, 3)
     await fluxfetch.quit()
-
-    // Clone the saved download under another id, dated an hour earlier.
-    const root = join(dirs.userData, 'downloads')
-    const olderId = '00000000-0000-4000-8000-000000000000'
-    await cp(join(root, id), join(root, olderId), { recursive: true })
-    const manifestPath = join(root, olderId, 'manifest.json')
-    const manifest = JSON.parse(await readFile(manifestPath, 'utf-8'))
-    manifest.state.id = olderId
-    manifest.state.startedAt -= 3_600_000
-    await writeFile(manifestPath, JSON.stringify(manifest))
-
     await fluxfetch.launch()
-    expect((await fluxfetch.current())?.id).toBe(id)
-    await expect.poll(() => existsSync(join(root, olderId))).toBe(false)
-
-    await fluxfetch.api.resumeDownload(id)
-    await fluxfetch.waitForStatus('completed')
+    const restored = await fluxfetch.api.listDownloads()
+    expect(restored.map((item) => item.state.id).sort()).toEqual([first.id, second.id].sort())
+    expect(restored.every((item) => item.state.status === 'paused')).toBe(true)
+    await Promise.all([first, second].map((item) => fluxfetch.api.resumeDownload(item.id)))
+    const { sha256 } = await import('./origin')
+    for (const item of [first, second]) {
+      await expect
+        .poll(async () => (await fluxfetch.api.getDownload(item.id))?.state.status)
+        .toBe('completed')
+      const snapshot = (await fluxfetch.api.getDownload(item.id))!
+      expect(sha256(await readFile(snapshot.state.destinationPath))).toBe(item.origin.sha256)
+    }
+    fluxfetch.tracked.clear()
   })
 
   test('staging file deleted while the app was closed → reports lost progress', async ({

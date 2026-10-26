@@ -99,11 +99,11 @@ class TorrentEngine:
                     params.ti = lt.torrent_info(str(metainfo))
                 else:
                     params = lt.parse_magnet_uri(record["source"])
-                self.install(params, record["savePath"], record.get("limit", 0), record.get("source", ""), record.get("paused", False))
+                self.install(params, record["savePath"], record.get("limit", 0), record.get("uploadLimit", 0), record.get("source", ""), record.get("paused", False))
             except Exception as error:
                 self.messages.append("Could not restore torrent: " + str(error))
 
-    def install(self, params, destination, limit, source="", paused=False):
+    def install(self, params, destination, limit, upload_limit=0, source="", paused=False):
         destination = str(Path(destination).resolve())
         Path(destination).mkdir(parents=True, exist_ok=True)
         params.save_path = destination
@@ -114,14 +114,17 @@ class TorrentEngine:
         if paused:
             params.flags |= lt.torrent_flags.paused
         params.download_limit = max(0, int(limit))
+        params.upload_limit = max(0, int(upload_limit))
         handle = self.session.add_torrent(params)
         handle.set_max_connections(250)
+        handle.set_download_limit(max(0, int(limit)))
+        handle.set_upload_limit(max(0, int(upload_limit)))
         key = self.key(handle)
         if key in self.jobs:
             return key
         self.removing.discard(key)
-        self.jobs[key] = {"key": key, "source": source, "savePath": destination, "limit": limit,
-                          "paused": paused, "handle": handle}
+        self.jobs[key] = {"key": key, "source": source, "savePath": destination, "limit": int(limit),
+                          "uploadLimit": int(upload_limit), "paused": paused, "handle": handle}
         self.index()
         self.save_metadata(handle)
         handle.save_resume_data()
@@ -207,6 +210,8 @@ class TorrentEngine:
                 "uploadSpeed": state.upload_payload_rate, "peers": state.num_peers, "seeders": state.num_seeds,
                 "destinationDir": job["savePath"], "contentPath": content_path,
                 "contentDirectory": content_directory,
+                "downloadLimit": int(job.get("limit", 0)),
+                "uploadLimit": int(job.get("uploadLimit", 0)),
                 "sequentialDownload": bool(handle.flags() & lt.torrent_flags.sequential_download),
                 "error": error, "files": files, "trackers": trackers,
                 "peerDetails": peers, "ratio": state.all_time_upload / max(1, state.all_time_download),
@@ -229,7 +234,7 @@ class TorrentEngine:
                 add.ti = lt.torrent_info(lt.bdecode(data))
             else:
                 add = lt.parse_magnet_uri(params["source"])
-            return self.install(add, params["destination"], params.get("limit", 0), params.get("source", ""))
+            return self.install(add, params["destination"], params.get("limit", 0), params.get("uploadLimit", 0), params.get("source", ""))
         if method == "shutdown":
             self.checkpoint()
             deadline = time.monotonic() + 2
@@ -243,7 +248,17 @@ class TorrentEngine:
             raise ValueError("That torrent is no longer in the list.")
         job = self.jobs[key]
         handle = job["handle"]
-        if method == "pause":
+        if method == "setLimit":
+            download_limit = max(0, int(params.get("downloadLimit", 0)))
+            upload_limit = max(0, int(params.get("uploadLimit", 0)))
+            handle.set_download_limit(download_limit)
+            handle.set_upload_limit(upload_limit)
+            job["limit"] = download_limit
+            job["uploadLimit"] = upload_limit
+            self.index()
+            handle.save_resume_data()
+            return True
+        elif method == "pause":
             handle.pause()
             job["paused"] = True
         elif method == "resume":

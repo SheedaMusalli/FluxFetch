@@ -14,7 +14,11 @@ export class DownloadFile {
 
   /** Every writer has its own descriptor and explicit offset. Never use append mode here. */
   writer(position: number): WriteStream {
-    return createWriteStream(this.path, { flags: 'r+', start: position })
+    return createWriteStream(this.path, {
+      flags: 'r+',
+      start: position,
+      highWaterMark: 1024 * 1024
+    })
   }
 
   async read(position: number, length: number): Promise<Buffer> {

@@ -122,10 +122,17 @@ test('compiled host, encrypted queue, authenticated transfers, restart and redir
     await expect
       .poll(async () => (await native({ action: 'status' })).current?.status)
       .toBe('downloading')
-    let status = await native({ action: 'status' })
+    const status = await native({ action: 'status' })
     expect(status.queue.length).toBe(1)
     await app.api.pauseDownload(status.current.id)
     expect((await native({ ...message, id: 'auth-two', filename: 'second.bin' })).ok).toBe(true)
+    await expect.poll(async () => (await app.api.listDownloads()).length).toBe(2)
+    expect(
+      (await app.api.listDownloads()).filter((item) => item.state.status === 'paused')
+    ).toHaveLength(1)
+    expect(
+      (await app.api.listDownloads()).filter((item) => item.state.status === 'downloading')
+    ).toHaveLength(1)
     expect(
       (await readFile(join(dirs.userData, 'browser-queue.bin'))).includes(
         Buffer.from('session=secret')
@@ -138,8 +145,9 @@ test('compiled host, encrypted queue, authenticated transfers, restart and redir
     }
     await app.relaunch()
     await expect.poll(async () => (await native({ action: 'status' })).queue?.length).toBe(2)
-    status = await native({ action: 'status' })
-    await app.api.resumeDownload(status.current.id)
+    await Promise.all(
+      (await app.api.listDownloads()).map((item) => app.api.resumeDownload(item.state.id))
+    )
     await expect
       .poll(
         async () => {
@@ -152,7 +160,18 @@ test('compiled host, encrypted queue, authenticated transfers, restart and redir
         { timeout: 30000 }
       )
       .toBe(true)
-    expect((await readFile(join(dirs.dest, 'auth.bin'))).equals(data)).toBe(true)
+    await expect
+      .poll(
+        async () => {
+          try {
+            return (await readFile(join(dirs.dest, 'auth.bin'))).equals(data)
+          } catch {
+            return false
+          }
+        },
+        { timeout: 30000 }
+      )
+      .toBe(true)
     await expect.poll(async () => (await native({ action: 'status' })).queue.length).toBe(0)
     expect(
       (

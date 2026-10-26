@@ -3,8 +3,8 @@ import { app, BrowserWindow, dialog, nativeTheme, shell, Tray, Menu } from 'elec
 import { join, basename, isAbsolute } from 'path'
 import { existsSync, renameSync } from 'node:fs'
 import { legacyDataFolder } from '../shared/legacyIdentity'
-import icon from '../../resources/icon-dark.png?asset'
-import windowsIcon from '../../resources/icon.ico?asset'
+import iconAsset from '../../resources/icon-dark.png?asset'
+import windowsIconAsset from '../../resources/icon.ico?asset'
 import { registerIpcHandlers } from './ipc/handlers'
 import { IpcChannels } from '../shared/ipc-channels'
 import { createTransferSummary, transferTrayTooltip } from '../shared/transfers'
@@ -17,13 +17,29 @@ import { restartRemoteManagement, stopRemoteManagement } from './remoteManagemen
 import { presentWindow } from './windowActivation'
 import { TorrentManager } from './torrent/libtorrent'
 
+// A build can be staged at a different depth before being packaged under out/.
+// Resolve packaged icons from the app root instead of the build-time location.
+const icon = app.isPackaged ? join(app.getAppPath(), 'resources', 'icon-dark.png') : iconAsset
+const windowsIcon = app.isPackaged
+  ? join(app.getAppPath(), 'resources', 'icon.ico')
+  : windowsIconAsset
+
 // In dev mode the app runs as the raw `electron` binary, which otherwise shows "Electron" in
 // the Dock tooltip/menu bar — must be set before the app is ready. Packaged builds already get
 // this from electron-builder's productName, but setting it here keeps dev and packaged in sync.
 // Keep existing settings, history, recovery state, and queued links after the visible rebrand.
-const dataFolder = join(app.getPath('appData'), 'FluxFetch')
+// Honor Electron's explicit profile switch so portable launches and packaged
+// verification can use an isolated profile without migrating the user's data.
+const profileSwitch = app.commandLine.getSwitchValue('user-data-dir')
+const explicitProfile = profileSwitch && isAbsolute(profileSwitch) ? profileSwitch : null
+const dataFolder = explicitProfile || join(app.getPath('appData'), 'FluxFetch')
 const previousDataFolder = join(app.getPath('appData'), legacyDataFolder)
-if (!testKnobs.userDataDir && !existsSync(dataFolder) && existsSync(previousDataFolder)) {
+if (
+  !explicitProfile &&
+  !testKnobs.userDataDir &&
+  !existsSync(dataFolder) &&
+  existsSync(previousDataFolder)
+) {
   // Move the complete profile, including encrypted recovery records, without overwriting a
   // profile already created by this version. Do not recreate the old directory on failure.
   try {
@@ -298,6 +314,7 @@ app.whenReady().then(async () => {
   if (
     process.platform === 'win32' &&
     app.isPackaged &&
+    !explicitProfile &&
     !testKnobs.userDataDir &&
     !app.isDefaultProtocolClient('magnet')
   ) {
@@ -378,7 +395,10 @@ app.whenReady().then(async () => {
     tray.on('double-click', showWindow)
   }
   void updateTransferStatus()
-  if (process.platform === 'win32' && (!testKnobs.userDataDir || testKnobs.browserBridge)) {
+  if (
+    process.platform === 'win32' &&
+    ((!explicitProfile && !testKnobs.userDataDir) || testKnobs.browserBridge)
+  ) {
     browserBridge = await startBrowserBridge(downloadManager, showWindow, torrentManager).catch(
       (error) => {
         console.error('Browser bridge:', error)

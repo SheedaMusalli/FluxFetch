@@ -25,10 +25,10 @@ const PROJECT_ROOT = resolve(__dirname, '..')
 export const BLOCK = 64 * 1024
 
 /**
- * The second test "network": this machine's LAN address. A request bound to it still reaches
- * the loopback test server, but arrives from a different source address — which is how the
- * server tells the two networks apart. Found (and checked to work) by global-setup.ts; null
- * where there's no usable one, and the multi-network tests skip.
+ * The second source-bound socket fixture: a usable LAN address or distinct loopback alias.
+ * The server distinguishes the sources for attribution and simulated interface changes.
+ * global-setup.ts verifies that the source is observed correctly. This does not establish
+ * physical multi-WAN throughput. The legacy environment variable name is kept for CI.
  */
 export const LAN_ADDRESS = process.env.FLUXFETCH_E2E_LAN || null
 
@@ -90,24 +90,31 @@ export class FluxFetchApp {
     while (true) {
       try {
         this.electronApp = await electron.launch({
-          args: [PROJECT_ROOT, ...(process.platform === 'linux' ? ['--no-sandbox'] : [])],
-          env: {
-            ...(process.env as Record<string, string>),
-            FLUXFETCH_USER_DATA: this.dirs.userData,
-            FLUXFETCH_E2E_HIDE_WINDOW: '1',
-            FLUXFETCH_E2E_BLOCK_BYTES: String(BLOCK),
-            FLUXFETCH_E2E_RETRY_BASE_MS: '20',
-            FLUXFETCH_E2E_STALL_MS: '1500',
-            // A busy server gives up after its retries alone, as any other wrong answer does,
-            // unless a test waits it out on purpose.
-            FLUXFETCH_E2E_SERVER_BUSY_MS: '1',
-            // Off unless a test asks for it: a hedge is an extra request, and most tests count them.
-            FLUXFETCH_E2E_HEDGE_MS: '600000',
-            // Fixed for the same reason, and for downloads started through the UI.
-            FLUXFETCH_E2E_STREAMS: '2',
-            FLUXFETCH_E2E_INTERFACES: interfacesEnv(NETWORKS),
-            ...this.extraEnv
-          }
+          args: [
+            process.env.FLUXFETCH_E2E_APP_PATH || PROJECT_ROOT,
+            ...(process.platform === 'linux' ? ['--no-sandbox'] : [])
+          ],
+          env: (() => {
+            const cleanEnv = { ...(process.env as Record<string, string>) }
+            delete cleanEnv.ELECTRON_RUN_AS_NODE
+            return {
+              ...cleanEnv,
+              FLUXFETCH_USER_DATA: this.dirs.userData,
+              FLUXFETCH_E2E_HIDE_WINDOW: '1',
+              FLUXFETCH_E2E_BLOCK_BYTES: String(BLOCK),
+              FLUXFETCH_E2E_RETRY_BASE_MS: '20',
+              FLUXFETCH_E2E_STALL_MS: '1500',
+              // A busy server gives up after its retries alone, as any other wrong answer does,
+              // unless a test waits it out on purpose.
+              FLUXFETCH_E2E_SERVER_BUSY_MS: '1',
+              // Off unless a test asks for it: a hedge is an extra request, and most tests count them.
+              FLUXFETCH_E2E_HEDGE_MS: '600000',
+              // Fixed for the same reason, and for downloads started through the UI.
+              FLUXFETCH_E2E_STREAMS: '2',
+              FLUXFETCH_E2E_INTERFACES: interfacesEnv(NETWORKS),
+              ...this.extraEnv
+            }
+          })()
         })
         break
       } catch (e: unknown) {
@@ -130,10 +137,15 @@ export class FluxFetchApp {
     this.sessions.push(session)
     this.updates.push(updates)
     // Kept whole, the way the window puts them together.
+    const states = new Map<string, DownloadState>()
     await this.page.exposeFunction('__fluxfetchRecord', (update: DownloadUpdate) => {
       updates.push(update)
-      const state = applyDownloadUpdate(session.at(-1) ?? null, update)
-      if (state && state !== session.at(-1)) session.push(state)
+      const previous = states.get(update.state.id) ?? null
+      const state = applyDownloadUpdate(previous, update)
+      if (state && state !== previous) {
+        states.set(state.id, state)
+        session.push(state)
+      }
     })
     await this.page.evaluate(() => {
       const w = window as unknown as { __fluxfetchRecord: (s: unknown) => void }
@@ -146,7 +158,14 @@ export class FluxFetchApp {
   async kill(): Promise<void> {
     const child = this.electronApp.process()
     const exited = new Promise((resolve) => child.once('exit', resolve))
-    child.kill('SIGKILL')
+    if (process.platform === 'win32') {
+      // Playwright launches through a Windows shell. Killing only that shell
+      // leaves Electron running, so the alleged crashed download can complete.
+      const mainPid = await this.evaluateMain(() => process.pid, null)
+      await promisify(execFile)('taskkill.exe', ['/PID', String(mainPid), '/T', '/F'], {
+        windowsHide: true
+      })
+    } else child.kill('SIGKILL')
     await exited
     this.alive = false
   }

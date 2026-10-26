@@ -1,0 +1,138 @@
+name: verify-repos
+# Installs net-merge for real from what is published: with install.sh / install.ps1 on every system,
+# and with the README's commands from the signed repositories, on x86-64 and ARM64. Runs on changes to
+# the install scripts, every Monday, and by hand (Actions > verify-repos > Run workflow) after a release.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 5 * * 1'
+  pull_request:
+    paths: [install.sh, install.ps1, .github/workflows/verify-repos.yml]
+
+env:
+  BASE: https://pkg.net-merge.org
+  FPR: 0168C7AB77721656904811AE904F61E7F4F1C2A1
+
+jobs:
+  # curl ... install.sh | sh, in a fresh container of each distribution
+  script-linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm]
+        distro: [ubuntu, debian, fedora, rocky, opensuse, alpine, arch, tarball]
+        include:
+          - {distro: ubuntu, image: 'ubuntu:24.04', prep: 'apt-get update -qq && apt-get install -y -qq curl ca-certificates >/dev/null'}
+          - {distro: debian, image: 'debian:stable', prep: 'apt-get update -qq && apt-get install -y -qq curl ca-certificates >/dev/null'}
+          - {distro: fedora, image: 'fedora:latest', prep: 'true'}
+          - {distro: rocky, image: 'rockylinux:9', prep: 'true'}
+          - {distro: opensuse, image: 'opensuse/tumbleweed', prep: 'true'}
+          - {distro: alpine, image: 'alpine:3.22', prep: 'true'} # no curl: the script falls back to wget
+          - {distro: arch, image: 'archlinux:latest', prep: 'sed -i "s/^#\\?DisableSandbox.*/DisableSandbox/" /etc/pacman.conf; grep -q ^DisableSandbox /etc/pacman.conf || sed -i "/^\\[options\\]/a DisableSandbox" /etc/pacman.conf'}
+          - {distro: tarball, image: 'ubuntu:24.04', prep: 'apt-get update -qq && apt-get install -y -qq curl ca-certificates libcap2-bin >/dev/null', method: tarball}
+        exclude:
+          - {os: ubuntu-24.04-arm, distro: arch} # Arch Linux has no ARM container image
+    name: install.sh ${{ matrix.distro }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          docker run --rm --cap-add NET_ADMIN --cap-add NET_RAW -v "$PWD:/src:ro" -e NET_MERGE_NO_START=1 \
+            -e NET_MERGE_METHOD=${{ matrix.method || 'auto' }} '${{ matrix.image }}' sh -ec '
+              ${{ matrix.prep }}
+              sh /src/install.sh
+              sh /src/install.sh   # again: an upgrade must work too
+              net-merge version
+              sh /src/install.sh uninstall
+              # (a "!" check would never fail under sh -e, so these are tests; hash -r: forget the old path)
+              hash -r; test -z "$(command -v net-merge)"
+              test ! -e /etc/apt/sources.list.d/net-merge.list
+              test ! -e /etc/yum.repos.d/net-merge.repo
+              test -z "$(grep -ls net-merge /etc/pacman.conf /etc/apk/repositories)"
+              test -z "$(zypper lr 2>/dev/null | grep net-merge)"'
+
+  script-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        method: [auto, tarball] # auto: Homebrew is on the runner
+    name: install.sh macOS ${{ matrix.method }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          NET_MERGE_NO_START: '1'
+          NET_MERGE_METHOD: ${{ matrix.method }}
+        run: |
+          sh install.sh
+          net-merge version
+          /usr/local/bin/net-merge version
+          sudo test -f /etc/sudoers.d/net-merge
+          sudo -n -l "$(readlink -f /usr/local/bin/net-merge)" tray
+          sh install.sh uninstall
+          hash -r; test -z "$(command -v net-merge)"
+          sudo test ! -e /etc/sudoers.d/net-merge
+
+  script-windows:
+    name: install.ps1 Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - shell: pwsh
+        run: |
+          $env:NET_MERGE_NO_START = '1'
+          ./install.ps1
+          & "$env:ProgramFiles\net-merge\net-merge.exe" version
+          # the README's uninstall line
+          & "$env:ProgramFiles\net-merge\net-merge.exe" quit; Start-Process "$env:ProgramFiles\net-merge\unins000.exe" '/SILENT' -Verb RunAs -Wait
+          for ($i = 0; $i -lt 30 -and (Test-Path "$env:ProgramFiles\net-merge\net-merge.exe"); $i++) { Start-Sleep 1 }
+          if (Test-Path "$env:ProgramFiles\net-merge\net-merge.exe") { throw 'net-merge is still installed' }
+
+  # the README's own commands, one system at a time
+  readme-commands:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm]
+        distro: [ubuntu, debian, fedora, rocky, opensuse, alpine, arch]
+        include:
+          - {distro: ubuntu, image: 'ubuntu:24.04', family: apt}
+          - {distro: debian, image: 'debian:stable', family: apt}
+          - {distro: fedora, image: 'fedora:latest', family: dnf}
+          - {distro: rocky, image: 'rockylinux:9', family: dnf}
+          - {distro: opensuse, image: 'opensuse/tumbleweed', family: zypper}
+          - {distro: alpine, image: 'alpine:3.22', family: apk}
+          - {distro: arch, image: 'archlinux:latest', family: pacman}
+        exclude:
+          - {os: ubuntu-24.04-arm, distro: arch}
+    name: README ${{ matrix.distro }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install net-merge
+        run: |
+          case '${{ matrix.family }}' in
+            apt) script='
+              apt-get update -qq && apt-get install -y -qq curl ca-certificates sudo >/dev/null
+              curl -fsSL $BASE/apt/key.gpg | sudo tee /usr/share/keyrings/net-merge.gpg >/dev/null
+              echo "deb [signed-by=/usr/share/keyrings/net-merge.gpg] $BASE/apt stable main" | sudo tee /etc/apt/sources.list.d/net-merge.list
+              sudo apt update && sudo apt install -y net-merge' ;;
+            dnf) script='
+              dnf install -y sudo >/dev/null
+              sudo curl -fsSL -o /etc/yum.repos.d/net-merge.repo $BASE/rpm/net-merge.repo && sudo dnf install -y net-merge' ;;
+            zypper) script='
+              zypper --non-interactive install sudo >/dev/null
+              sudo zypper addrepo $BASE/rpm/net-merge.repo && sudo zypper --gpg-auto-import-keys install -y net-merge' ;;
+            apk) script='
+              apk add --no-cache sudo >/dev/null
+              sudo wget -O /etc/apk/keys/net-merge.rsa.pub $BASE/apk/net-merge.rsa.pub
+              echo $BASE/apk | sudo tee -a /etc/apk/repositories && sudo apk add net-merge' ;;
+            pacman) script='
+              pacman-key --init
+              curl -fsSL $BASE/apt/key.asc | pacman-key --add - && pacman-key --lsign-key $FPR
+              printf "\n[net-merge]\nSigLevel = Required\nServer = $BASE/arch/\$arch\n" >> /etc/pacman.conf
+              pacman --disable-sandbox -Sy --noconfirm net-merge' ;;
+          esac
+          docker run --rm --cap-add NET_ADMIN --cap-add NET_RAW -e BASE -e FPR '${{ matrix.image }}' sh -ec "
+            $script
+            net-merge version
+            test -f /usr/share/applications/io.github.rohit267.net-merge.desktop"

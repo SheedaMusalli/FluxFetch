@@ -46,9 +46,22 @@ const fluxfetchApi = {
   openFile: (filePath: string) => invoke('openFile', filePath),
   trashFile: (filePath: string) => invoke('trashFile', filePath),
   runOmniLink: () => invoke('runOmniLink'),
-  previewZip: (filePath: string) => invoke('previewZip', filePath),
-  extractZipEntries: (filePath: string, entries: string[], destination: string) =>
-    invoke('extractZipEntries', filePath, entries, destination),
+  isOmniLinkInstalled: () => invoke('isOmniLinkInstalled'),
+  netMergeStatus: () => invoke('netMergeStatus'),
+  netMergeControl: (action: 'start' | 'stop') => invoke('netMergeControl', action),
+  netMergeLimit: (adapter: string, mbps: number) => invoke('netMergeLimit', adapter, mbps),
+  netMergeQuota: (request: import('../shared/netMerge').NetMergeQuotaRequest) =>
+    invoke('netMergeQuota', request),
+  previewZip: (filePath: string, password?: string) => invoke('previewZip', filePath, password),
+  extractZipEntries: (
+    filePath: string,
+    entries: string[],
+    destination: string,
+    password?: string
+  ) => invoke('extractZipEntries', filePath, entries, destination, password),
+  testArchive: (filePath: string, password?: string) => invoke('testArchive', filePath, password),
+  openArchiveEntry: (filePath: string, entryName: string, password?: string) =>
+    invoke('openArchiveEntry', filePath, entryName, password),
   openExternalUrl: (url: string) => invoke('openExternalUrl', url),
   addTorrent: (source: string) => invoke('addTorrent', source),
   chooseTorrentFile: () => invoke('chooseTorrentFile'),
@@ -68,6 +81,8 @@ const fluxfetchApi = {
   },
   reannounceTorrent: (gid: string) => invoke('reannounceTorrent', gid),
   openTorrentFolder: (gid: string) => invoke('openTorrentFolder', gid),
+  setTorrentLimit: (gid: string, downloadLimit: number, uploadLimit: number) =>
+    invoke('setTorrentLimit', gid, downloadLimit, uploadLimit),
   onTorrentAdded: (callback: () => void): (() => void) => {
     const listener = (): void => callback()
     ipcRenderer.on(IpcChannels.torrentAdded, listener)
@@ -92,6 +107,7 @@ const fluxfetchApi = {
   startDownload: (request: IpcContract['startDownload']['args'][0]) =>
     invoke('startDownload', request),
   getCurrentDownload: () => invoke('getCurrentDownload'),
+  listDownloads: () => invoke('listDownloads'),
   getDownload: (downloadId: string) => invoke('getDownload', downloadId),
   openDownloadWindow: (downloadId: string) => invoke('openDownloadWindow', downloadId),
   showMainWindow: (retryUrl?: string) => invoke('showMainWindow', retryUrl),

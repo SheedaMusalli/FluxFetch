@@ -185,19 +185,38 @@ test.describe('edge cases', () => {
     expect(Date.now() - started).toBeLessThan(10_000)
   })
 
-  test('starting a second download while one is active is refused @smoke', async ({
+  test('a second download completes while the first remains active @smoke', async ({
     fluxfetch,
     serve
   }) => {
     const origin = await serve({ size: 10 * BLOCK })
     const reached = origin.hold(BLOCK)
-    await fluxfetch.start(origin.url(), origin.sha256)
+    const first = await fluxfetch.start(origin.url(), origin.sha256)
     await reached
 
     const other = await serve({ size: BLOCK, seed: 3 })
-    await expect(fluxfetch.start(other.url(), other.sha256)).rejects.toThrow(/already in progress/)
+    const second = await fluxfetch.start(other.url(), other.sha256)
+    expect(second).not.toBe(first)
+    await expect
+      .poll(async () => (await fluxfetch.api.getDownload(second))?.state.status)
+      .toBe('completed')
+    expect((await fluxfetch.api.getDownload(first))?.state.status).toBe('downloading')
 
     origin.release()
-    await fluxfetch.waitForStatus('completed')
+    await expect
+      .poll(async () => (await fluxfetch.api.getDownload(first))?.state.status)
+      .toBe('completed')
+    // This test checks both results explicitly; the single-transfer fixture's directory
+    // baseline is unsuitable for two files finishing in a shared folder.
+    const { readFile } = await import('node:fs/promises')
+    const { sha256 } = await import('./origin')
+    for (const [id, hash] of [
+      [first, origin.sha256],
+      [second, other.sha256]
+    ]) {
+      const snapshot = (await fluxfetch.api.getDownload(id))!
+      expect(sha256(await readFile(snapshot.state.destinationPath))).toBe(hash)
+    }
+    fluxfetch.tracked.clear()
   })
 })

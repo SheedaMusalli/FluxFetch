@@ -33,6 +33,10 @@ Var FluxFetchLicenseAccepted
 Var FluxFetchFreshState
 Var FluxFetchUpdateRadio
 Var FluxFetchFreshRadio
+Var FluxFetchOmniLinkState
+Var FluxFetchOmniLinkCheckbox
+Var FluxFetchNetMergeState
+Var FluxFetchNetMergeCheckbox
 !endif
 
 !macro customInit
@@ -82,6 +86,18 @@ Var FluxFetchFreshRadio
   ${ifNot} ${Errors}
     StrCpy $FluxFetchDesktopState $0
   ${endif}
+  StrCpy $FluxFetchOmniLinkState ${BST_CHECKED}
+  ClearErrors
+  ReadRegDWORD $0 SHELL_CONTEXT "Software\FluxFetch\Installer" "OmniLink"
+  ${ifNot} ${Errors}
+    StrCpy $FluxFetchOmniLinkState $0
+  ${endif}
+  StrCpy $FluxFetchNetMergeState ${BST_CHECKED}
+  ClearErrors
+  ReadRegDWORD $0 SHELL_CONTEXT "Software\FluxFetch\Installer" "NetMerge"
+  ${ifNot} ${Errors}
+    StrCpy $FluxFetchNetMergeState $0
+  ${endif}
   !ifdef FLUXFETCH_SETUP_PREVIEW
     # The design-only build can exercise every page without installing the app.
     SectionSetFlags 0 0
@@ -126,6 +142,7 @@ Var FluxFetchFreshRadio
 !macro customPageAfterChangeDir
   Page custom FluxFetchInstallChoice FluxFetchInstallChoiceLeave
   Page custom FluxFetchConfigure FluxFetchConfigureLeave
+  Page custom FluxFetchComponents FluxFetchComponentsLeave
   Page custom FluxFetchReview
   !define MUI_PAGE_CUSTOMFUNCTION_SHOW FluxFetchProgressShow
 !macroend
@@ -461,7 +478,7 @@ Function FluxFetchConfigure
   SendMessage $FluxFetchStartupCheckbox ${WM_SETFONT} $FluxFetchBodyFont 1
   SendMessage $FluxFetchDesktopCheckbox ${WM_SETFONT} $FluxFetchBodyFont 1
   GetDlgItem $0 $HWNDPARENT 1
-  SendMessage $0 ${WM_SETTEXT} 0 "STR:Review setup"
+  SendMessage $0 ${WM_SETTEXT} 0 "STR:Continue"
   GetFunctionAddress $0 FluxFetchSaveOptions
   nsDialogs::OnBack $0
   nsDialogs::Show
@@ -575,6 +592,76 @@ Function FluxFetchConfigureLeave
   Abort
 FunctionEnd
 
+Function FluxFetchComponents
+  ${if} ${isUpdated}
+    Abort
+  ${endif}
+  !insertmacro MUI_HEADER_TEXT "NETWORK ENGINES" "Welcome   /   Options   /   Review   /   Install"
+  nsDialogs::Create 1018
+  Pop $0
+  ${if} $0 == error
+    Abort
+  ${endif}
+  SetCtlColors $0 "" "171925"
+
+  !insertmacro FluxLabel 0 0 100% 26u "Power your downloads." "F0F0FA"
+  SendMessage $0 ${WM_SETFONT} $FluxFetchTitleFont 1
+
+  !insertmacro FluxLabel 0 28u 100% 16u "Choose optional networking engines to install with FluxFetch." "A4A8C1"
+
+  # OmniLink Accent Bar & Choice
+  ${NSD_CreateLabel} 0 54u 2u 46u ""
+  Pop $0
+  SetCtlColors $0 "A99AFF" "A99AFF"
+
+  ${NSD_CreateCheckBox} 10u 52u 95% 18u "Install OmniLink Engine (Recommended for Steam & Game Launchers)"
+  Pop $FluxFetchOmniLinkCheckbox
+  System::Call '$PLUGINSDIR\FluxFetchButtons.dll::StyleChoice(p $FluxFetchOmniLinkCheckbox, i 0)'
+  System::Call 'uxtheme::SetWindowTheme(p $FluxFetchOmniLinkCheckbox, w "", w "")'
+  SetCtlColors $FluxFetchOmniLinkCheckbox "F0F0FA" "171925"
+  SendMessage $FluxFetchOmniLinkCheckbox ${WM_SETFONT} $FluxFetchBoldFont 1
+  ${NSD_SetState} $FluxFetchOmniLinkCheckbox $FluxFetchOmniLinkState
+
+  !insertmacro FluxLabel 24u 72u 92% 32u "Supercharges Steam and game launcher downloads by routing transfers through FluxFetch's multi-stream accelerator. Seamlessly integrates with the Windows system tray companion." "A4A8C1"
+  SetCtlColors $0 "A4A8C1" "171925"
+  SendMessage $0 ${WM_SETFONT} $FluxFetchSmallFont 1
+
+  # Net-Merge Accent Bar & Choice
+  ${NSD_CreateLabel} 0 114u 2u 46u ""
+  Pop $0
+  SetCtlColors $0 "60CDFF" "60CDFF"
+
+  ${NSD_CreateCheckBox} 10u 112u 95% 18u "Install Net-Merge Engine (Multi-Network Bandwidth Bonding)"
+  Pop $FluxFetchNetMergeCheckbox
+  System::Call '$PLUGINSDIR\FluxFetchButtons.dll::StyleChoice(p $FluxFetchNetMergeCheckbox, i 0)'
+  System::Call 'uxtheme::SetWindowTheme(p $FluxFetchNetMergeCheckbox, w "", w "")'
+  SetCtlColors $FluxFetchNetMergeCheckbox "F0F0FA" "171925"
+  SendMessage $FluxFetchNetMergeCheckbox ${WM_SETFONT} $FluxFetchBoldFont 1
+  ${NSD_SetState} $FluxFetchNetMergeCheckbox $FluxFetchNetMergeState
+
+  !insertmacro FluxLabel 24u 132u 92% 32u "Combines multiple network adapters (Wi-Fi, Ethernet, and Mobile USB tethering) into one high-speed bonded connection with automatic adapter discovery and per-network quotas." "A4A8C1"
+  SetCtlColors $0 "A4A8C1" "171925"
+  SendMessage $0 ${WM_SETFONT} $FluxFetchSmallFont 1
+
+  !insertmacro FluxLabel 0 182u 100% 16u "Unselected engines will be omitted and their buttons will not show up in FluxFetch." "7E8299"
+  SendMessage $0 ${WM_SETFONT} $FluxFetchSmallFont 1
+
+  GetDlgItem $0 $HWNDPARENT 1
+  SendMessage $0 ${WM_SETTEXT} 0 "STR:Review setup"
+  GetFunctionAddress $0 FluxFetchSaveComponents
+  nsDialogs::OnBack $0
+  nsDialogs::Show
+FunctionEnd
+
+Function FluxFetchSaveComponents
+  ${NSD_GetState} $FluxFetchOmniLinkCheckbox $FluxFetchOmniLinkState
+  ${NSD_GetState} $FluxFetchNetMergeCheckbox $FluxFetchNetMergeState
+FunctionEnd
+
+Function FluxFetchComponentsLeave
+  Call FluxFetchSaveComponents
+FunctionEnd
+
 Function FluxFetchReview
   ${if} ${isUpdated}
     Abort
@@ -585,34 +672,21 @@ Function FluxFetchReview
   SetCtlColors $0 "" "171925"
   !insertmacro FluxLabel 0 0 100% 30u "Everything look right?" "F0F0FA"
   SendMessage $0 ${WM_SETFONT} $FluxFetchTitleFont 1
-  !insertmacro FluxLabel 0 36u 100% 20u "Review your choices. Go Back to change anything." "A4A8C1"
-  !insertmacro FluxCard 65u 112u
+  !insertmacro FluxLabel 0 34u 100% 18u "Review your choices. Go Back to change anything." "A4A8C1"
+  !insertmacro FluxCard 58u 126u
   StrCpy $1 "Your Windows account"
   ${if} $installMode == "all"
     StrCpy $1 "Everyone on this computer"
   ${endif}
-  !insertmacro FluxLabel 12u 75u 94% 18u "$1" "A99AFF"
+  !insertmacro FluxLabel 12u 66u 94% 16u "$1" "A99AFF"
   SetCtlColors $0 "A99AFF" "202231"
-  !insertmacro FluxLabel 12u 99u 94% 30u "$INSTDIR" "F0F0FA"
+  !insertmacro FluxLabel 12u 84u 94% 20u "$INSTDIR" "F0F0FA"
   SetCtlColors $0 "F0F0FA" "202231"
-  StrCpy $1 ""
-  ${if} $FluxFetchChromeState == ${BST_CHECKED}
-    StrCpy $1 "$1 Chrome"
-  ${endif}
-  ${if} $FluxFetchEdgeState == ${BST_CHECKED}
-    StrCpy $1 "$1 Edge"
-  ${endif}
-  ${if} $FluxFetchFirefoxState == ${BST_CHECKED}
-    StrCpy $1 "$1 Firefox"
-  ${endif}
-  ${if} $1 == ""
-    StrCpy $1 " None"
-  ${endif}
   StrCpy $1 "Update / Keep settings and history"
   ${if} $FluxFetchFreshState == ${BST_CHECKED}
     StrCpy $1 "Fresh install / Reset settings and history"
   ${endif}
-  !insertmacro FluxLabel 12u 130u 94% 18u "$1" "A4A8C1"
+  !insertmacro FluxLabel 12u 106u 94% 16u "$1" "A4A8C1"
   SetCtlColors $0 "A4A8C1" "202231"
   StrCpy $1 "Shortcuts:"
   ${if} $FluxFetchStartMenuState == ${BST_CHECKED}
@@ -627,9 +701,22 @@ Function FluxFetchReview
   ${if} $FluxFetchStartupState == ${BST_CHECKED}
     StrCpy $1 "$1 / Start at sign-in"
   ${endif}
-  !insertmacro FluxLabel 12u 152u 94% 20u "$1" "A4A8C1"
+  !insertmacro FluxLabel 12u 124u 94% 16u "$1" "A4A8C1"
   SetCtlColors $0 "A4A8C1" "202231"
-  !insertmacro FluxLabel 0 184u 100% 16u "$FluxFetchSpaceText" "A4A8C1"
+  StrCpy $1 "Engines:"
+  ${if} $FluxFetchOmniLinkState == ${BST_CHECKED}
+    StrCpy $1 "$1 OmniLink"
+  ${endif}
+  ${if} $FluxFetchNetMergeState == ${BST_CHECKED}
+    StrCpy $1 "$1 Net-Merge"
+  ${endif}
+  ${if} $1 == "Engines:"
+    StrCpy $1 "Engines: None (standard downloads only)"
+  ${endif}
+  !insertmacro FluxLabel 12u 142u 94% 16u "$1" "56D8BD"
+  SetCtlColors $0 "56D8BD" "202231"
+  !insertmacro FluxLabel 12u 162u 94% 16u "$FluxFetchSpaceText" "A4A8C1"
+  SetCtlColors $0 "A4A8C1" "202231"
   SendMessage $0 ${WM_SETFONT} $FluxFetchSmallFont 1
   GetDlgItem $0 $HWNDPARENT 1
   SendMessage $0 ${WM_SETTEXT} 0 "STR:Install FluxFetch"
@@ -759,6 +846,16 @@ FunctionEnd
   ${if} $FluxFetchDesktopState != ${BST_CHECKED}
     WinShell::UninstShortcut "$newDesktopLink"
     Delete "$newDesktopLink"
+  ${endif}
+  WriteRegDWORD SHELL_CONTEXT "Software\FluxFetch\Installer" "OmniLink" $FluxFetchOmniLinkState
+  WriteRegDWORD SHELL_CONTEXT "Software\FluxFetch\Installer" "NetMerge" $FluxFetchNetMergeState
+  ${if} $FluxFetchOmniLinkState != ${BST_CHECKED}
+    DetailPrint "Omitting OmniLink engine..."
+    RMDir /r "$INSTDIR\resources\omnilink"
+  ${endif}
+  ${if} $FluxFetchNetMergeState != ${BST_CHECKED}
+    DetailPrint "Omitting Net-Merge engine..."
+    RMDir /r "$INSTDIR\resources\net-merge"
   ${endif}
   ${if} $FluxFetchChromeState == ${BST_CHECKED}
     WriteRegStr SHELL_CONTEXT "Software\Google\Chrome\NativeMessagingHosts\com.fluxfetch.browser" "" "$INSTDIR\resources\browser\com.fluxfetch.browser.json"

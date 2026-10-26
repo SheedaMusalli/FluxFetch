@@ -264,6 +264,9 @@ export function TorrentDialog({
                       onReannounce={() =>
                         void action(() => window.fluxfetch.reannounceTorrent(torrent.gid))
                       }
+                      onSetLimit={(gid, down, up) =>
+                        action(() => window.fluxfetch.setTorrentLimit(gid, down, up))
+                      }
                     />
                   )}
                 </div>

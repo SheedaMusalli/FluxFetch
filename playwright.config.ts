@@ -11,7 +11,9 @@ export default defineConfig({
   workers: process.env.PLAYWRIGHT_WORKERS
     ? Number(process.env.PLAYWRIGHT_WORKERS)
     : process.env.CI
-      ? 2
+      ? process.platform === 'win32'
+        ? 1
+        : 2
       : 4,
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list'

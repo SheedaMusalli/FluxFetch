@@ -92,6 +92,7 @@ fs.cpSync(path.join(root, 'extension'), edgeDir, { recursive: true })
 const edgeManifestPath = path.join(edgeDir, 'manifest.json')
 const edgeManifest = JSON.parse(fs.readFileSync(edgeManifestPath, 'utf8'))
 delete edgeManifest.key
+edgeManifest.version = '1.0.0'
 fs.writeFileSync(edgeManifestPath, `${JSON.stringify(edgeManifest, null, 2)}\n`)
 // Keep generated metadata in the same format enforced by `npm run format:check`.
 execFileSync(

@@ -9,6 +9,10 @@ extraResources:
     to: legal/LICENSE
   - from: docs/THIRD-PARTY-MEDIA.md
     to: legal/THIRD-PARTY-MEDIA.md
+  - from: config/media-tools.lock.json
+    to: config/media-tools.lock.json
+  - from: config/torrent-engine.lock.json
+    to: config/torrent-engine.lock.json
   - from: third-party-licenses
     to: legal/third-party-licenses
   - from: native-host
@@ -42,7 +46,6 @@ files:
   # koffi is only loaded on Linux (network/deviceBinding.ts) and ships prebuilds for every OS.
   - '!node_modules/koffi/{src,vendor,doc}/**'
   - '!node_modules/koffi/build/koffi/!(linux_x64|linux_arm64)/**'
-  - '!{tsconfig.json,config/tsconfig.node.json,config/tsconfig.web.json,config/tsconfig.e2e.json}'
 asarUnpack:
   - resources/icon-dark.png
   - resources/icon.ico

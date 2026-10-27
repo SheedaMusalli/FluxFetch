@@ -16,7 +16,7 @@ qBittorrent's [`SessionImpl`](https://github.com/qbittorrent/qBittorrent/blob/ma
 - Jobs, metainfo and periodic libtorrent resume records live under `%APPDATA%\FluxFetch\torrent-session`. Paused jobs stay paused after restart. Shutdown and parent-pipe closure save state before exiting.
 - `.torrent` files register in Windows Open With. Windows retains control of the user's default application. File and magnet launches ask for a destination before adding a transfer.
 
-`torrent-engine.lock.json` pins the official CPython embeddable runtime and the libtorrent wheel, including SHA-256 checksums. `npm run build:torrent` prepares them; no Python installation or pip is needed on the end user's PC. Notices are shipped in `legal/third-party-licenses` and in the embedded runtime's license file.
+`config/torrent-engine.lock.json` pins the official CPython embeddable runtime and the libtorrent wheel, including SHA-256 checksums. `npm run build:torrent` prepares them; no Python installation or pip is needed on the end user's PC. Notices are shipped in `legal/third-party-licenses` and in the embedded runtime's license file.
 
 Run `npm run test:torrent-engine` on Windows after preparing the engine. The regression test transfers a locally generated file between two local libtorrent sessions, checks its bytes, tracker failure diagnostics, pause/resume, restart persistence and removal. It contacts no public swarm. `e2e/torrent.spec.ts` covers Electron IPC, confirmations, Windows launch arguments and the themed removal dialog.
 

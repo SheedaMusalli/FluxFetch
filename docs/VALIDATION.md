@@ -30,7 +30,7 @@ Original baseline: FluxFetch 1.0.0-browser.1, Windows x64.
 - Tested compact menu, actual available qualities, synthetic click rejection, SPA navigation, page-button toggle, and invalid native URL rejection.
 - Three backend tests passed: format injection rejection, DRM-format filtering, cancellation before asynchronous preparation, child-process cancellation, progress and saved-path reporting, duplicate inspection, and shutdown cleanup.
 - Earlier page-button tests passed: dynamic links, network-detected media, original browser transfer retained after native 403, POST downloads retained in browser, unsupported segmented streams and visibility setting.
-- Media binary archives were verified against GitHub release SHA-256 digests; versions and hashes are in media-tools.lock.json. The new engine uses no shell commands for download arguments and passes only canonical YouTube URLs and internally selected format expressions.
+- Media binary archives were verified against GitHub release SHA-256 digests; versions and hashes are in config/media-tools.lock.json. The new engine uses no shell commands for download arguments and passes only canonical YouTube URLs and internally selected format expressions.
 - At that revision, YouTube media bytes were transferred by yt-dlp. The current 1.0.0-browser.5 path is described above and uses FluxFetch's download manager for the transfers.
 - Screenshot is a deterministic player-layout fixture, not a screenshot of YouTube's current production interface. No broad public-site survey was performed.
 

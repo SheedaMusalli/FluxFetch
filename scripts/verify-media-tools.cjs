@@ -43,8 +43,9 @@ const hash = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex')
       sha256: `sha256:${hash(payloads[record.url])}`
     }))
     files['versions.json'] = Buffer.from(JSON.stringify(records, null, 2))
+    await fs.mkdir(path.join(fixture, 'config'), { recursive: true })
     await fs.writeFile(
-      path.join(fixture, 'media-tools.lock.json'),
+      path.join(fixture, 'config/media-tools.lock.json'),
       JSON.stringify({
         records,
         files: Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name, hash(bytes)]))
@@ -67,6 +68,7 @@ const hash = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex')
       exports: module.exports,
       module,
       Buffer,
+      process: { resourcesPath: fixture },
       AbortSignal,
       URL,
       require: (name) =>

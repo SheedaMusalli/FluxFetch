@@ -6,7 +6,7 @@ const root = path.join(process.cwd(), 'media-tools')
 fs.mkdirSync(root, { recursive: true })
 ;(async () => {
   const lock = JSON.parse(
-    fs.readFileSync(path.join(process.cwd(), 'media-tools.lock.json'), 'utf8')
+    fs.readFileSync(path.join(process.cwd(), 'config/media-tools.lock.json'), 'utf8')
   )
   if (
     Object.entries(lock.files).every(

@@ -5,7 +5,9 @@ const AdmZip = require('adm-zip')
 const root = path.resolve(__dirname, '..')
 
 ;(async () => {
-  const lock = JSON.parse(await fs.readFile(path.join(root, 'torrent-engine.lock.json'), 'utf8'))
+  const lock = JSON.parse(
+    await fs.readFile(path.join(root, 'config/torrent-engine.lock.json'), 'utf8')
+  )
   const cache = path.join(root, 'artifacts/torrent-engine-cache')
   const output = path.join(root, 'resources/torrent-engine')
   const runtime = path.join(output, 'runtime')

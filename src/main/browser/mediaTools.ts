@@ -81,7 +81,9 @@ export async function ensureMediaTools(includeFfmpeg = false): Promise<string> {
   }
   const operation = (async () => {
     const destination = mediaToolsDirectory()
-    const lockPath = join(app.getAppPath(), 'media-tools.lock.json')
+    const lockPath = app.isPackaged
+      ? join(process.resourcesPath, 'config/media-tools.lock.json')
+      : join(app.getAppPath(), 'config/media-tools.lock.json')
     const lock = JSON.parse(await readFile(lockPath, 'utf8')) as MediaToolLock
     if (
       includeFfmpeg &&

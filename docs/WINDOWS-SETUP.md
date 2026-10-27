@@ -82,7 +82,7 @@ npm ci
 npm run build:win
 ```
 
-YouTube and video tools are downloaded by FluxFetch on first use and checked against the hashes in `media-tools.lock.json`; FFmpeg is deferred until video muxing is needed. A moved upstream asset will fail verification. To prefetch the pinned tools while developing, run `npm run build:media`. See THIRD-PARTY-MEDIA.md for component sources and licenses.
+YouTube and video tools are downloaded by FluxFetch on first use and checked against the hashes in `config/media-tools.lock.json`; FFmpeg is deferred until video muxing is needed. A moved upstream asset will fail verification. To prefetch the pinned tools while developing, run `npm run build:media`. See THIRD-PARTY-MEDIA.md for component sources and licenses.
 
 The result appears in `release/`. The build compiles the .NET helper, signs the CRX3 with a local RSA key, compiles TypeScript/React, and creates the NSIS Windows x64 installer. A new `.signing/extension.pem` is generated if none exists, which changes the extension ID. Preserve the original key to maintain this delivered extension identity. The separately supplied **FluxFetch-Maintainer-Key.zip** contains that private key; extract it into the source root before rebuilding. Keep it private and do not publish it with the public source.
 

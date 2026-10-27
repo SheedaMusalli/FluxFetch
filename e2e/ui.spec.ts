@@ -59,7 +59,7 @@ test.describe('UI journeys @smoke', () => {
       dialog.getByRole('heading', { name: 'FluxFetch internet speed test' })
     ).toBeVisible()
     await expect(dialog.getByText('Ready when you are')).toBeVisible()
-    await expect(dialog.getByLabel('Ping result')).toHaveText('—')
+    await expect(dialog.getByLabel('Latency result')).toHaveText('—')
     await expect(dialog.getByLabel('Jitter result')).toHaveText('—')
     await expect(dialog.getByLabel('Download result')).toHaveText('—')
     await expect(dialog.getByLabel('Upload result')).toHaveText('—')
@@ -69,7 +69,7 @@ test.describe('UI journeys @smoke', () => {
     await expect(dialog.getByRole('alert')).toBeVisible()
     await expect.poll(() => requests).toBeGreaterThan(0)
     await expect(dialog.getByRole('button', { name: 'Run again' })).toBeVisible()
-    await expect(dialog.getByLabel('Ping result')).toHaveText('—')
+    await expect(dialog.getByLabel('Latency result')).toHaveText('—')
     await expect(dialog.getByLabel('Download result')).toHaveText('—')
     await expect(dialog.getByLabel('Upload result')).toHaveText('—')
 
@@ -109,7 +109,7 @@ test.describe('UI journeys @smoke', () => {
     if (closeBounds) expect(closeBounds.y).toBeGreaterThanOrEqual(0)
     await expect(dialog.getByLabel('Speed test duration')).toBeVisible()
     await expect(dialog.getByRole('button', { name: 'Start test' })).toBeInViewport()
-    for (const label of ['Ping result', 'Jitter result', 'Download result', 'Upload result']) {
+    for (const label of ['Latency result', 'Jitter result', 'Download result', 'Upload result']) {
       await expect(dialog.getByLabel(label)).toBeVisible()
     }
   })
@@ -380,7 +380,7 @@ test.describe('UI journeys @smoke', () => {
     await dialog.getByRole('button', { name: 'Start test' }).click()
     await expect(duration).toBeDisabled()
     await expect(dialog.getByText('Test complete')).toBeVisible({ timeout: 30_000 })
-    await expect(dialog.getByLabel('Ping result')).toHaveText(/\d+ ms|<1 ms/)
+    await expect(dialog.getByLabel('Latency result')).toHaveText(/\d+ ms|<1 ms/)
     await expect(dialog.getByLabel('Jitter result')).not.toHaveText('—')
     await expect(dialog.getByLabel('Download result')).toHaveText(/\d+(\.\d+)? Mbps|\d+\.\d+ Gbps/)
     await expect(dialog.getByLabel('Upload result')).toHaveText(/\d+(\.\d+)? Mbps|\d+\.\d+ Gbps/)
@@ -589,8 +589,9 @@ test.describe('settings @smoke', () => {
     expect(bounds.top).toBeGreaterThanOrEqual(0)
     expect(bounds.right).toBeLessThanOrEqual(viewport.width)
     expect(bounds.bottom).toBeLessThanOrEqual(viewport.height)
-    await dialog.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
-    await expect(dialog.getByRole('button', { name: 'Check now' })).toBeInViewport()
+    const checkNow = dialog.getByRole('button', { name: 'Check now' })
+    await checkNow.scrollIntoViewIfNeeded()
+    await expect(checkNow).toBeInViewport()
   })
 
   test('settings close button responds across the center of its hit target', async ({
@@ -617,7 +618,7 @@ test.describe('settings @smoke', () => {
     await expect(button).toBeVisible()
     await button.hover()
     const tooltip = fluxfetch.page.locator('[data-slot="tooltip-content"]')
-    await expect(tooltip).toContainText('administrator approval')
+    await expect(tooltip).toContainText("Use OmniLink's tray menu")
     await expect(tooltip).toContainText('Steam')
     await expect(tooltip).toContainText('download servers')
   })

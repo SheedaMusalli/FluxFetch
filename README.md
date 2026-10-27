@@ -20,24 +20,24 @@ FluxFetch is a Windows download manager with concurrent, resumable HTTP/HTTPS tr
 
 ## Features
 
-| Feature                | What you can do                                                                                                                                                                      |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Parallel downloads     | Run multiple direct downloads at once, split supported files across connections, select adapters, resume each transfer after restart, and retry failed parts.                         |
-| Built-in torrents      | Download and seed magnets and `.torrent` files directly, without another torrent client or an installed Python runtime.                                                              |
-| Live progress          | See every active direct download and torrent as its own library row with progress, speed, ETA and controls. The bottom live-transfer footer is reserved for torrents.                  |
-| Torrent details        | Inspect files, per-file progress, trackers and errors, connected peers, ETA, uploads, ratio, DHT nodes, listening port and full content location. Open the download folder directly. |
-| OmniLink               | Route eligible Steam and game-launcher connections through selected adapters and inspect launcher activity in the tray companion.                                                   |
+| Feature                | What you can do                                                                                                                                                                                |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Parallel downloads     | Run multiple direct downloads at once, split supported files across connections, select adapters, resume each transfer after restart, and retry failed parts.                                  |
+| Built-in torrents      | Download and seed magnets and `.torrent` files directly, without another torrent client or an installed Python runtime.                                                                        |
+| Live progress          | See every active direct download and torrent as its own library row with progress, speed, ETA and controls. The bottom live-transfer footer is reserved for torrents.                          |
+| Torrent details        | Inspect files, per-file progress, trackers and errors, connected peers, ETA, uploads, ratio, DHT nodes, listening port and full content location. Open the download folder directly.           |
+| OmniLink               | Route eligible Steam and game-launcher connections through selected adapters and inspect launcher activity in the tray companion.                                                              |
 | Net Merge              | Run the user-mode multi-network engine, inspect adapters and quotas, set per-adapter limits, and start or stop it from FluxFetch. Separate Internet connections are needed for added capacity. |
-| Browser integration    | Capture supported downloads, send links through the context menu, find direct media, and download supported public YouTube videos. Chrome, Edge and Firefox packages are included. |
-| Cleaner capture        | Automatic capture leaves ordinary images and known downloads smaller than 128 KiB in the browser. Explicit actions and torrent links are handled separately.                         |
-| Download library       | View active direct downloads and torrents alongside completed history, with per-transfer controls, filters, search, resizable columns and persistent column preferences.             |
-| File removal           | Remove history while keeping files, or explicitly confirm disk deletion. Torrents have separate keep-files and delete-files actions.                                                 |
-| Queues and scheduling  | Add batches of URLs, manage waiting downloads and schedule queue starts.                                                                                                             |
-| Torrent limits         | Set download and upload bandwidth caps for torrents from their details panel.                                                                                                         |
-| Network tools          | Test Internet and combined-network speed, apply rate limits, configure HTTP/HTTPS/SOCKS proxies and save site authentication.                                                        |
-| Archive tools          | Browse, search, test and extract archives; 7-Zip handles encrypted ZIP/AES and RAR formats. Add or remove archive entries in the manager.                                            |
-| Optional remote access | Manage supported actions through an authenticated HTTPS dashboard, disabled by default.                                                                                              |
-| Windows integration    | Clipboard download prompts, magnet and `.torrent` handling, system tray operation, and update checks against FluxFetch's GitHub releases.                                            |
+| Browser integration    | Capture supported downloads, send links through the context menu, find direct media, and download supported public YouTube videos. Chrome, Edge and Firefox packages are included.             |
+| Cleaner capture        | Automatic capture leaves ordinary images and known downloads smaller than 128 KiB in the browser. Explicit actions and torrent links are handled separately.                                   |
+| Download library       | View active direct downloads and torrents alongside completed history, with per-transfer controls, filters, search, resizable columns and persistent column preferences.                       |
+| File removal           | Remove history while keeping files, or explicitly confirm disk deletion. Torrents have separate keep-files and delete-files actions.                                                           |
+| Queues and scheduling  | Add batches of URLs, manage waiting downloads and schedule queue starts.                                                                                                                       |
+| Torrent limits         | Set download and upload bandwidth caps for torrents from their details panel.                                                                                                                  |
+| Network tools          | Test Internet and combined-network speed, apply rate limits, configure HTTP/HTTPS/SOCKS proxies and save site authentication.                                                                  |
+| Archive tools          | Browse, search, test and extract archives; 7-Zip handles encrypted ZIP/AES and RAR formats. Add or remove archive entries in the manager.                                                      |
+| Optional remote access | Manage supported actions through an authenticated HTTPS dashboard, disabled by default.                                                                                                        |
+| Windows integration    | Clipboard download prompts, magnet and `.torrent` handling, system tray operation, and update checks against FluxFetch's GitHub releases.                                                      |
 
 ## OmniLink for Steam
 

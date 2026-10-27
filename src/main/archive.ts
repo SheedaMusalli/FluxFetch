@@ -159,8 +159,8 @@ export async function previewZip(
         : undefined,
     encrypted: Boolean(
       (entry.header.flags & 1) !== 0 ||
-        entry.header.method === 99 ||
-        (entry.header as unknown as { encrypted?: boolean }).encrypted
+      entry.header.method === 99 ||
+      (entry.header as unknown as { encrypted?: boolean }).encrypted
     )
   }))
 }
@@ -243,9 +243,7 @@ export async function extractArchiveEntries(
       if (header.flags.directory) continue
       if (!item.extraction) {
         if (header.flags.encrypted) {
-          throw new Error(
-            `Password required or incorrect password for ${header.name}`
-          )
+          throw new Error(`Password required or incorrect password for ${header.name}`)
         }
         throw new Error(`Failed to extract ${header.name}`)
       }
@@ -299,8 +297,8 @@ export async function extractZipEntries(
     let data: Buffer
     const isEncrypted = Boolean(
       (entry.header.flags & 1) !== 0 ||
-        entry.header.method === 99 ||
-        (entry.header as unknown as { encrypted?: boolean }).encrypted
+      entry.header.method === 99 ||
+      (entry.header as unknown as { encrypted?: boolean }).encrypted
     )
     if (isEncrypted && !password) {
       throw new Error(`Password required for protected file: ${entry.entryName}`)
@@ -309,9 +307,7 @@ export async function extractZipEntries(
       data = password ? entry.getData(password) : entry.getData()
     } catch (err) {
       if (isEncrypted) {
-        throw new Error(
-          `Password incorrect or extraction failed for: ${entry.entryName}`
-        )
+        throw new Error(`Password incorrect or extraction failed for: ${entry.entryName}`)
       }
       throw err
     }
@@ -322,10 +318,7 @@ export async function extractZipEntries(
   return extracted
 }
 
-export async function testArchive(
-  filePath: string,
-  password?: string
-): Promise<ArchiveTestResult> {
+export async function testArchive(filePath: string, password?: string): Promise<ArchiveTestResult> {
   if (get7zPath()) {
     const args = ['t', '-y']
     if (password !== undefined && password !== '') {
@@ -404,8 +397,8 @@ export async function testArchive(
         totalBytes += entry.header.size
         const isEncrypted = Boolean(
           (entry.header.flags & 1) !== 0 ||
-            entry.header.method === 99 ||
-            (entry.header as unknown as { encrypted?: boolean }).encrypted
+          entry.header.method === 99 ||
+          (entry.header as unknown as { encrypted?: boolean }).encrypted
         )
         if (isEncrypted && !password) {
           errors.push(`Password required for encrypted file ${entry.entryName}`)
@@ -478,7 +471,7 @@ export async function openArchiveEntry(
     if (!entry) throw new Error(`Entry ${entryName} not found in archive`)
     const isEncrypted = Boolean(
       (entry.header.flags & 1) !== 0 ||
-        (entry.header as unknown as { encrypted?: boolean }).encrypted
+      (entry.header as unknown as { encrypted?: boolean }).encrypted
     )
     if (isEncrypted && !password) {
       throw new Error(`Password required for protected file: ${entryName}`)

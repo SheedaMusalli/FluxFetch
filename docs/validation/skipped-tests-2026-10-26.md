@@ -10,17 +10,17 @@ Global setup now tries all available LAN candidates and falls back to a validate
 
 ## Passed cases
 
-| Case | Result |
-| --- | --- |
-| Two sources share work; attributed bytes equal server-observed bytes | Passed |
-| One source fails permanently; the other finishes the file | Passed |
-| A source disappears and returns; it carries data again | Passed |
+| Case                                                                           | Result |
+| ------------------------------------------------------------------------------ | ------ |
+| Two sources share work; attributed bytes equal server-observed bytes           | Passed |
+| One source fails permanently; the other finishes the file                      | Passed |
+| A source disappears and returns; it carries data again                         | Passed |
 | Newly available source stays off until enabled; off/on controls remain correct | Passed |
-| Rapidly switching the last source off/on leaves the intended final state | Passed |
-| Resume with all sources disabled selects a source still available | Passed |
-| Unreachable source retains a retry stream and recovers its stream count | Passed |
-| Changed source address reconnects before the long retry backoff expires | Passed |
-| Nonwritable Windows destination refuses start without orphaned files | Passed |
+| Rapidly switching the last source off/on leaves the intended final state       | Passed |
+| Resume with all sources disabled selects a source still available              | Passed |
+| Unreachable source retains a retry stream and recovers its stream count        | Passed |
+| Changed source address reconnects before the long retry backoff expires        | Passed |
+| Nonwritable Windows destination refuses start without orphaned files           | Passed |
 
 ## Windows permission case
 

@@ -8,7 +8,11 @@ export default defineConfig({
   // race, and retrying would hide exactly what this suite exists to catch.
   retries: 0,
   fullyParallel: true,
-  workers: process.env.CI ? 2 : 4,
+  workers: process.env.PLAYWRIGHT_WORKERS
+    ? Number(process.env.PLAYWRIGHT_WORKERS)
+    : process.env.CI
+      ? 2
+      : 4,
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list'
 })

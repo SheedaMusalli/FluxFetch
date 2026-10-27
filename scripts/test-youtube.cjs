@@ -26,12 +26,29 @@ function fixture() {
     },
     async getDownload(id) {
       const request = downloadRequests[Number(id.slice('download-'.length)) - 1]
-      return { state: { id, status: 'completed', destinationPath: 'C:\\Downloads\\' + request.suggestedFileName, totalBytes: request.totalBytes, bytesDownloaded: request.totalBytes, speedBytesPerSec: 0 } }
+      return {
+        state: {
+          id,
+          status: 'completed',
+          destinationPath: 'C:\\Downloads\\' + request.suggestedFileName,
+          totalBytes: request.totalBytes,
+          bytesDownloaded: request.totalBytes,
+          speedBytesPerSec: 0
+        }
+      }
     },
-    async cancel() {},
-    async remove() {},
-    async publishMergedFile() {},
-    notifyExternalCompletion() {}
+    async cancel() {
+      return undefined
+    },
+    async remove() {
+      return undefined
+    },
+    async publishMergedFile() {
+      return undefined
+    },
+    notifyExternalCompletion() {
+      return undefined
+    }
   }
   const context = {
     exports: exported,
@@ -46,9 +63,22 @@ function fixture() {
         return { loadSettings: async () => ({ destinationDir: 'test-downloads' }) }
       if (name === '../network/interfaces') return { listActiveInterfaces: async () => [] }
       if (name === '../download/probe') return { probeUrl: async () => ({}) }
-      if (name === '../download/paths') return { getDefaultTemporaryDir: () => 'temp', getSuggestedDownloadDir: () => 'test-downloads' }
+      if (name === '../download/paths')
+        return {
+          getDefaultTemporaryDir: () => 'temp',
+          getSuggestedDownloadDir: () => 'test-downloads'
+        }
       if (name === './mediaTools') return { ensureMediaTools: async () => 'media-tools' }
-      if (name === 'node:fs/promises') return { mkdir: async () => {}, mkdtemp: async () => 'temp', open: async () => ({ close: async () => {} }), rename: async () => {}, rm: async () => {}, readdir: async () => [], writeFile: async () => {} }
+      if (name === 'node:fs/promises')
+        return {
+          mkdir: async () => {},
+          mkdtemp: async () => 'temp',
+          open: async () => ({ close: async () => {} }),
+          rename: async () => {},
+          rm: async () => {},
+          readdir: async () => [],
+          writeFile: async () => {}
+        }
       if (name === 'node:child_process')
         return {
           execFileSync(_exe, args) {
@@ -75,7 +105,17 @@ function fixture() {
     }
   }
   vm.runInNewContext(source, context)
-  return { engine: new exported.YoutubeDownloads(manager, () => {}, async () => ({ accepted: true, destinationDir: 'test-downloads', temporaryDir: 'temp' })), children, calls, downloadRequests, app }
+  return {
+    engine: new exported.YoutubeDownloads(
+      manager,
+      () => {},
+      async () => ({ accepted: true, destinationDir: 'test-downloads', temporaryDir: 'temp' })
+    ),
+    children,
+    calls,
+    downloadRequests,
+    app
+  }
 }
 const next = () => new Promise((resolve) => setImmediate(resolve))
 async function ready(f) {
@@ -89,7 +129,13 @@ async function ready(f) {
         formats: [
           { height: 720, vcodec: 'avc1', acodec: 'none', url: 'https://r1.googlevideo.com/video' },
           { height: 2160, vcodec: 'avc1', acodec: 'none', has_drm: true },
-          { vcodec: 'none', acodec: 'opus', url: 'https://r1.googlevideo.com/audio', language: 'en', language_preference: 10 }
+          {
+            vcodec: 'none',
+            acodec: 'opus',
+            url: 'https://r1.googlevideo.com/audio',
+            language: 'en',
+            language_preference: 10
+          }
         ]
       }) + '\n'
     )
@@ -103,9 +149,34 @@ test('prefers original-language audio over a larger dubbed track and dubbed comb
   const f = fixture()
   const formats = [
     { format_id: 'video-only-720', height: 720, vcodec: 'avc1', acodec: 'none', filesize: 2000 },
-    { format_id: 'combined-dub-720', height: 720, vcodec: 'avc1', acodec: 'mp4a', format_note: 'Dubbed', language: 'es', language_preference: -1, filesize: 20000 },
-    { format_id: 'audio-dub', vcodec: 'none', acodec: 'opus', format_note: 'Dubbed', language: 'es', language_preference: -1, filesize: 9000 },
-    { format_id: 'audio-original', vcodec: 'none', acodec: 'opus', format_note: 'Original', language: 'en', language_preference: 10, filesize: 1000 }
+    {
+      format_id: 'combined-dub-720',
+      height: 720,
+      vcodec: 'avc1',
+      acodec: 'mp4a',
+      format_note: 'Dubbed',
+      language: 'es',
+      language_preference: -1,
+      filesize: 20000
+    },
+    {
+      format_id: 'audio-dub',
+      vcodec: 'none',
+      acodec: 'opus',
+      format_note: 'Dubbed',
+      language: 'es',
+      language_preference: -1,
+      filesize: 9000
+    },
+    {
+      format_id: 'audio-original',
+      vcodec: 'none',
+      acodec: 'opus',
+      format_note: 'Original',
+      language: 'en',
+      language_preference: 10,
+      filesize: 1000
+    }
   ]
   const audio = f.engine.selectFormats(formats, { id: 'audio', audioOnly: true })
   assert.equal(audio.audio.format_id, 'audio-original')

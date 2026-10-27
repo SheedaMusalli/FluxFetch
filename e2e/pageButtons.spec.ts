@@ -55,8 +55,9 @@ test('no floating button, direct media controls, capture fallback, and unsupport
     const range = /bytes=(\d+)-(\d*)/.exec(req.headers.range || '')
     const start = range ? Number(range[1]) : 0,
       end = range?.[2] ? Number(range[2]) : bytes.length - 1
-    const media = ['/media-endpoint', '/chunk.m4s'].includes(req.url || '')
-    const filename = req.url === '/media-endpoint' ? 'clip.mp4' : req.url?.slice(1) || 'file.bin'
+    const media = ['/media-endpoint.mp4', '/chunk.m4s'].includes(req.url || '')
+    const filename =
+      req.url === '/media-endpoint.mp4' ? 'clip.mp4' : req.url?.slice(1) || 'file.bin'
     res.writeHead(range ? 206 : 200, {
       'Content-Type': media ? 'video/mp4' : 'application/octet-stream',
       'Content-Length': end - start + 1,
@@ -112,10 +113,15 @@ test('no floating button, direct media controls, capture fallback, and unsupport
     expect((await readFile(downloadedPath!)).equals(bytes)).toBe(true)
     expect(browserOnlyRefused).toBeGreaterThan(0)
     expect((await readdir(dirs.dest)).length).toBe(count)
-    const message = await worker.evaluate(
-      "chrome.storage.local.get('lastMessage').then(x=>x.lastMessage)"
-    )
-    expect(message).toContain('Chrome kept the download')
+    await expect
+      .poll(
+        () => worker.evaluate("chrome.storage.local.get('lastMessage').then(x=>x.lastMessage)"),
+        {
+          message: 'the extension reports that Chrome kept the browser-only download',
+          timeout: 20_000
+        }
+      )
+      .toContain('Chrome kept the download')
     // A POST download must remain in Chrome without being replayed as a GET.
     await page.goto(url + '/post')
     const formDownload = page.waitForEvent('download')
@@ -126,13 +132,16 @@ test('no floating button, direct media controls, capture fallback, and unsupport
     await dock.locator('#media-tools button').click()
     await expect(dock.locator('#media-tools button')).toContainText('Added to FluxFetch')
     await expect
-      .poll(async () => {
-        try {
-          return (await readFile(join(dirs.dest, 'media-endpoint.mp4'))).equals(bytes)
-        } catch {
-          return false
-        }
-      })
+      .poll(
+        async () => {
+          try {
+            return (await readFile(join(dirs.dest, 'Video', 'media-endpoint.mp4'))).equals(bytes)
+          } catch {
+            return false
+          }
+        },
+        { message: 'the captured media finishes in FluxFetch', timeout: 20_000 }
+      )
       .toBe(true)
     await page.goto(url + '/stream')
     await expect(dock.locator('#media-tools button')).toBeHidden()

@@ -55,17 +55,17 @@ The actual packaged app also exposed incorrect packaged icon paths that prevente
 
 ## Implemented features and remaining limits
 
-| Area | State |
-| --- | --- |
-| Full upstream source at commit `4f9579410244c15abd6a8a8ac1787e3e7bf4ca45`, MIT attribution | Included under `integrations/net-merge` |
-| Net Merge dialog alongside OmniLink; start/stop, speed limits, persistent budgets | Implemented |
-| Bounded destination-prefix affinity, bulk-flow steering, latency and RTT inflation scheduling | Implemented and engine tested |
-| Physical-adapter HTTPS public-IP discovery | Implemented; equal egress IP produces a warning, not automatic adapter deduplication |
-| Per-hardware quota identity across rename/reconnect, daily/manual reset, fail-closed storage behavior | Implemented and engine tested |
-| Standard Wintun runtime | Included; original WireGuard publisher signature verified |
-| WFP kernel driver and controller | Experimental source, INF, build project and control protocol included; **not compiled or loaded** |
-| Driver signing | Signing script included; no signing certificate available |
-| Privileged service, eBPF, GRO/GSO acceleration | **Not implemented** |
+| Area                                                                                                  | State                                                                                             |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Full upstream source at commit `4f9579410244c15abd6a8a8ac1787e3e7bf4ca45`, MIT attribution            | Included under `integrations/net-merge`                                                           |
+| Net Merge dialog alongside OmniLink; start/stop, speed limits, persistent budgets                     | Implemented                                                                                       |
+| Bounded destination-prefix affinity, bulk-flow steering, latency and RTT inflation scheduling         | Implemented and engine tested                                                                     |
+| Physical-adapter HTTPS public-IP discovery                                                            | Implemented; equal egress IP produces a warning, not automatic adapter deduplication              |
+| Per-hardware quota identity across rename/reconnect, daily/manual reset, fail-closed storage behavior | Implemented and engine tested                                                                     |
+| Standard Wintun runtime                                                                               | Included; original WireGuard publisher signature verified                                         |
+| WFP kernel driver and controller                                                                      | Experimental source, INF, build project and control protocol included; **not compiled or loaded** |
+| Driver signing                                                                                        | Signing script included; no signing certificate available                                         |
+| Privileged service, eBPF, GRO/GSO acceleration                                                        | **Not implemented**                                                                               |
 
 The WFP prototype cannot be described as a working production driver. Visual Studio C++ tools and Windows SDK/WDK were unavailable, and there was no code-signing certificate. No Driver Verifier run, kernel loading, Microsoft hardware signing, or certification was performed. The normal Start button uses upstream Wintun, not the experimental WFP prototype.
 

@@ -419,7 +419,9 @@
           }
         }
       }
-    } catch { /* The page has no usable player data yet; show fallback qualities. */ }
+    } catch {
+      /* The page has no usable player data yet; show fallback qualities. */
+    }
 
     if (heights.length === 0) {
       heights = [1080, 720, 480, 360, 240, 144]
@@ -489,8 +491,8 @@
 
         const isAudio = Boolean(
           choice.audioOnly ||
-            choice.id === 'audio' ||
-            /audio\s+only|^audio\b/i.test(choice.label || '')
+          choice.id === 'audio' ||
+          /audio\s+only|^audio\b/i.test(choice.label || '')
         )
         const parsedHeight =
           Number(choice.height) ||
@@ -509,7 +511,9 @@
         } else if (parsedHeight >= 2160) {
           badge.classList.add('badge-4k')
           badge.textContent = '4K'
-          label.textContent = needsSignIn ? 'Retry 4K with sign-in' : `${parsedHeight}p (4K Ultra HD)`
+          label.textContent = needsSignIn
+            ? 'Retry 4K with sign-in'
+            : `${parsedHeight}p (4K Ultra HD)`
           ext.textContent = 'MP4'
         } else if (parsedHeight >= 1440) {
           badge.classList.add('badge-4k')
@@ -519,7 +523,9 @@
         } else if (parsedHeight >= 1080) {
           badge.classList.add('badge-hd')
           badge.textContent = '1080p'
-          label.textContent = needsSignIn ? 'Retry 1080p with sign-in' : `${parsedHeight}p (Full HD)`
+          label.textContent = needsSignIn
+            ? 'Retry 1080p with sign-in'
+            : `${parsedHeight}p (Full HD)`
           ext.textContent = 'MP4'
         } else if (parsedHeight >= 720) {
           badge.classList.add('badge-hd')

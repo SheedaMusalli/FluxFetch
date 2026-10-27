@@ -23,6 +23,9 @@ jobs:
     timeout-minutes: 60
     env:
       FLUXFETCH_CHAOS_RUNS: ${{ github.event.inputs.chaos_runs || '50' }}
+      # Electron's Chromium profile databases and hard-crash recovery need exclusive access on
+      # Windows. Serializing the suite avoids cross-test file-lock races on the hosted runner.
+      PLAYWRIGHT_WORKERS: ${{ runner.os == 'Windows' && '1' || '2' }}
     steps:
       - uses: actions/checkout@v4
 

@@ -35,13 +35,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {goarch: "386"}
-          - {goarch: arm, goarm: "7", qemu: qemu-arm-static}
-          - {goarch: arm, goarm: "6", qemu: qemu-arm-static}
-          - {goarch: riscv64, qemu: qemu-riscv64-static}
-          - {goarch: ppc64le, qemu: qemu-ppc64le-static}
-          - {goarch: s390x, qemu: qemu-s390x-static}
-          - {goarch: loong64, qemu: qemu-loongarch64-static}
+          - { goarch: '386' }
+          - { goarch: arm, goarm: '7', qemu: qemu-arm-static }
+          - { goarch: arm, goarm: '6', qemu: qemu-arm-static }
+          - { goarch: riscv64, qemu: qemu-riscv64-static }
+          - { goarch: ppc64le, qemu: qemu-ppc64le-static }
+          - { goarch: s390x, qemu: qemu-s390x-static }
+          - { goarch: loong64, qemu: qemu-loongarch64-static }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -54,7 +54,7 @@ jobs:
         env:
           GOARCH: ${{ matrix.goarch }}
           GOARM: ${{ matrix.goarm }}
-          CGO_ENABLED: "0"
+          CGO_ENABLED: '0'
         run: |
           go vet ./...
           go test -timeout 10m ${{ matrix.qemu && format('-exec {0}', matrix.qemu) || '' }} ./...

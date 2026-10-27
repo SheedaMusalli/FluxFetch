@@ -6,6 +6,10 @@ import { makeDirs, FluxFetchApp } from './fixtures'
 import { createBrowserHost } from './browserHost'
 
 test.skip(process.platform !== 'win32', 'Windows integration')
+test.skip(
+  process.env.FLUXFETCH_E2E_LIVE_YOUTUBE !== '1',
+  'Uses live YouTube and yt-dlp; set FLUXFETCH_E2E_LIVE_YOUTUBE=1 to run outside deterministic CI.'
+)
 test('YouTube compact control, trusted clicks, real quality discovery and merged download', async () => {
   test.setTimeout(180000)
   const root = resolve(__dirname, '..'),

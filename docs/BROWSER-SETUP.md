@@ -7,7 +7,7 @@ Install [FluxFetch for Windows](https://github.com/SheedaMusalli/FluxFetch/relea
 | Browser                 | Release asset           | Extension page                                |
 | ----------------------- | ----------------------- | --------------------------------------------- |
 | Chrome                  | `FluxFetch-Chrome.zip`  | `chrome://extensions`                         |
-| Edge                    | FluxFetch-Edge.zip      | edge://extensions                          |
+| Edge                    | FluxFetch-Edge.zip      | edge://extensions                             |
 | Brave                   | `FluxFetch-Chrome.zip`  | `brave://extensions`                          |
 | Vivaldi                 | `FluxFetch-Chrome.zip`  | `vivaldi://extensions`                        |
 | Opera / Opera GX        | `FluxFetch-Chrome.zip`  | `opera://extensions`                          |

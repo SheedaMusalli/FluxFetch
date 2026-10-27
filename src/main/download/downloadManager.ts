@@ -1573,8 +1573,9 @@ export class DownloadManager {
       )
       for (const iface of present) {
         if (!state.networks.some((network) => network.id === iface.id)) {
-          const autoEnable = splittable(runtime.requestPayload)
-          state.networks.push(newNetwork(iface, autoEnable))
+          // Interfaces discovered after a download starts stay opt-in. The user can enable them
+          // explicitly from the download's network controls once they appear.
+          state.networks.push(newNetwork(iface, false))
         }
       }
     }

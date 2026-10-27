@@ -480,14 +480,9 @@ export function SpeedTestDialog({
                 : 'Measuring upload'
 
   const mainMetric =
-    phase === 'upload'
-      ? formatSpeed(metrics.upload)
-      : formatSpeed(metrics.download)
+    phase === 'upload' ? formatSpeed(metrics.upload) : formatSpeed(metrics.download)
 
-  const mainMetricLabel =
-    phase === 'upload'
-      ? 'Upload speed'
-      : 'Download speed'
+  const mainMetricLabel = phase === 'upload' ? 'Upload speed' : 'Download speed'
 
   return (
     <Dialog open={open} onOpenChange={close}>

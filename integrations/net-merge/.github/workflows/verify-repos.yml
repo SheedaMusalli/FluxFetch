@@ -22,16 +22,33 @@ jobs:
         os: [ubuntu-latest, ubuntu-24.04-arm]
         distro: [ubuntu, debian, fedora, rocky, opensuse, alpine, arch, tarball]
         include:
-          - {distro: ubuntu, image: 'ubuntu:24.04', prep: 'apt-get update -qq && apt-get install -y -qq curl ca-certificates >/dev/null'}
-          - {distro: debian, image: 'debian:stable', prep: 'apt-get update -qq && apt-get install -y -qq curl ca-certificates >/dev/null'}
-          - {distro: fedora, image: 'fedora:latest', prep: 'true'}
-          - {distro: rocky, image: 'rockylinux:9', prep: 'true'}
-          - {distro: opensuse, image: 'opensuse/tumbleweed', prep: 'true'}
-          - {distro: alpine, image: 'alpine:3.22', prep: 'true'} # no curl: the script falls back to wget
-          - {distro: arch, image: 'archlinux:latest', prep: 'sed -i "s/^#\\?DisableSandbox.*/DisableSandbox/" /etc/pacman.conf; grep -q ^DisableSandbox /etc/pacman.conf || sed -i "/^\\[options\\]/a DisableSandbox" /etc/pacman.conf'}
-          - {distro: tarball, image: 'ubuntu:24.04', prep: 'apt-get update -qq && apt-get install -y -qq curl ca-certificates libcap2-bin >/dev/null', method: tarball}
+          - {
+              distro: ubuntu,
+              image: 'ubuntu:24.04',
+              prep: 'apt-get update -qq && apt-get install -y -qq curl ca-certificates >/dev/null'
+            }
+          - {
+              distro: debian,
+              image: 'debian:stable',
+              prep: 'apt-get update -qq && apt-get install -y -qq curl ca-certificates >/dev/null'
+            }
+          - { distro: fedora, image: 'fedora:latest', prep: 'true' }
+          - { distro: rocky, image: 'rockylinux:9', prep: 'true' }
+          - { distro: opensuse, image: 'opensuse/tumbleweed', prep: 'true' }
+          - { distro: alpine, image: 'alpine:3.22', prep: 'true' } # no curl: the script falls back to wget
+          - {
+              distro: arch,
+              image: 'archlinux:latest',
+              prep: 'sed -i "s/^#\\?DisableSandbox.*/DisableSandbox/" /etc/pacman.conf; grep -q ^DisableSandbox /etc/pacman.conf || sed -i "/^\\[options\\]/a DisableSandbox" /etc/pacman.conf'
+            }
+          - {
+              distro: tarball,
+              image: 'ubuntu:24.04',
+              prep: 'apt-get update -qq && apt-get install -y -qq curl ca-certificates libcap2-bin >/dev/null',
+              method: tarball
+            }
         exclude:
-          - {os: ubuntu-24.04-arm, distro: arch} # Arch Linux has no ARM container image
+          - { os: ubuntu-24.04-arm, distro: arch } # Arch Linux has no ARM container image
     name: install.sh ${{ matrix.distro }} (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     steps:
@@ -96,15 +113,15 @@ jobs:
         os: [ubuntu-latest, ubuntu-24.04-arm]
         distro: [ubuntu, debian, fedora, rocky, opensuse, alpine, arch]
         include:
-          - {distro: ubuntu, image: 'ubuntu:24.04', family: apt}
-          - {distro: debian, image: 'debian:stable', family: apt}
-          - {distro: fedora, image: 'fedora:latest', family: dnf}
-          - {distro: rocky, image: 'rockylinux:9', family: dnf}
-          - {distro: opensuse, image: 'opensuse/tumbleweed', family: zypper}
-          - {distro: alpine, image: 'alpine:3.22', family: apk}
-          - {distro: arch, image: 'archlinux:latest', family: pacman}
+          - { distro: ubuntu, image: 'ubuntu:24.04', family: apt }
+          - { distro: debian, image: 'debian:stable', family: apt }
+          - { distro: fedora, image: 'fedora:latest', family: dnf }
+          - { distro: rocky, image: 'rockylinux:9', family: dnf }
+          - { distro: opensuse, image: 'opensuse/tumbleweed', family: zypper }
+          - { distro: alpine, image: 'alpine:3.22', family: apk }
+          - { distro: arch, image: 'archlinux:latest', family: pacman }
         exclude:
-          - {os: ubuntu-24.04-arm, distro: arch}
+          - { os: ubuntu-24.04-arm, distro: arch }
     name: README ${{ matrix.distro }} (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     steps:

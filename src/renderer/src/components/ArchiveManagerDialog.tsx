@@ -767,9 +767,7 @@ export function ArchiveManagerDialog({
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
-              {passwordError && (
-                <p className="text-xs text-destructive">{passwordError}</p>
-              )}
+              {passwordError && <p className="text-xs text-destructive">{passwordError}</p>}
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-border/50">

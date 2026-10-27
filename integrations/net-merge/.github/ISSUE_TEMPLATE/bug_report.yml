@@ -10,7 +10,7 @@ body:
     attributes:
       label: net-merge version
       description: Run `net-merge version`, or look at the line above *Quit* in the tray menu. On Android, the version is in Settings, Apps, net-merge.
-      placeholder: "0.3.4"
+      placeholder: '0.3.4'
     validations:
       required: true
   - type: dropdown

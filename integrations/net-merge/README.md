@@ -56,8 +56,8 @@ There is no account, no server and no VPN.
 A real test with Wi-Fi + an Android USB tether + an iPhone hotspot, 9 downloads at once:
 **232-303 Mbit/s**. The fastest connection alone gave about 121 Mbit/s.
 
-| Windows: hover the icon | Windows: the menu | macOS: the menu bar |
-|---|---|---|
+| Windows: hover the icon                                                         | Windows: the menu                                                                                    | macOS: the menu bar                                                                                                 |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | ![Tooltip: Merging, speed of each adapter and the total](docs/tray-tooltip.png) | ![Menu: total, each adapter's speed and flows, IPv6 option, Pause merging, Quit](docs/tray-menu.png) | ![macOS menu: total 399 Mbit/s, en0 and feth0 each with their flows, Pause merging, Quit](docs/tray-menu-macos.png) |
 
 ## How it helps
@@ -94,7 +94,7 @@ and double-click it instead.
 
 That's it: net-merge is installed and its icon appears in the menu bar or tray. On Linux the script
 uses your package manager (apt, dnf, zypper, apk or pacman) and on macOS Homebrew when you have it, so
-net-merge updates with the rest of your system. To start it at sign-in, tick *Start at sign-in* in its menu.
+net-merge updates with the rest of your system. To start it at sign-in, tick _Start at sign-in_ in its menu.
 
 **Android**: see [Android](#android) below.
 
@@ -118,7 +118,7 @@ brew install rohit267/tap/net-merge && sudo "$(brew --prefix)/bin/net-merge" ins
 curl -fsSL https://github.com/rohit267/net-merge/releases/latest/download/net-merge-macos-universal.tar.gz | tar -xz -C /tmp net-merge && sudo /tmp/net-merge install && net-merge tray
 ```
 
-**Debian, Ubuntu, Linux Mint, Pop!_OS, Raspberry Pi OS** (apt):
+**Debian, Ubuntu, Linux Mint, Pop!\_OS, Raspberry Pi OS** (apt):
 
 ```
 curl -fsSL https://pkg.net-merge.org/apt/key.gpg | sudo tee /usr/share/keyrings/net-merge.gpg >/dev/null
@@ -166,7 +166,7 @@ curl -fsSL https://github.com/rohit267/net-merge/releases/latest/download/net-me
 ```
 
 **Windows by hand**: download [net-merge-setup.exe](https://github.com/rohit267/net-merge/releases/latest/download/net-merge-setup.exe)
-and run it. Windows may warn because the app is not signed yet: click *More info*, then *Run anyway*.
+and run it. Windows may warn because the app is not signed yet: click _More info_, then _Run anyway_.
 There is also a [portable zip](https://github.com/rohit267/net-merge/releases/latest/download/net-merge-portable.zip).
 
 Then start it with `net-merge tray` (Linux, macOS) or from the Start menu (Windows).
@@ -181,12 +181,13 @@ Then start it with `net-merge tray` (Linux, macOS) or from the Start menu (Windo
 - **No password prompts:** the Linux packages give net-merge the network rights it needs (`setcap`), and on
   macOS `net-merge install` adds one rule so that only `net-merge tray` can run as root without a password.
 - **Linux tray icon:** needs a desktop with StatusNotifierItem support: KDE, XFCE, Cinnamon, LXQt, Budgie,
-  or GNOME with the *AppIndicator and KStatusNotifierItem Support* extension (Ubuntu already has it).
+  or GNOME with the _AppIndicator and KStatusNotifierItem Support_ extension (Ubuntu already has it).
 - **Firewall:** if it blocks unknown traffic, trust the `net-merge` interface
   (for example `firewall-cmd --zone=trusted --add-interface=net-merge`).
 - **Signed repositories:** apt, dnf, zypper and pacman use the key in
   [`packaging/apt-signing-key.asc`](packaging/apt-signing-key.asc), fingerprint
   `0168 C7AB 7772 1656 9048 11AE 904F 61E7 F4F1 C2A1`.
+
 </details>
 
 ## Android
@@ -206,7 +207,7 @@ It needs Android 8.0 or newer.
   backups and download managers. One single download stays on one network, like on a computer.
 - **Mobile data stays on** while net-merge runs, so keep an eye on your data plan.
 - **One VPN at a time:** Android lets only one VPN app run, so net-merge can't run next to another VPN.
-- **Problems?** [Open an issue](https://github.com/rohit267/net-merge/issues/new/choose) and pick *Android*.
+- **Problems?** [Open an issue](https://github.com/rohit267/net-merge/issues/new/choose) and pick _Android_.
   The code is in [net-merge/android](https://github.com/net-merge/android).
 
 ## Uninstall
@@ -218,7 +219,7 @@ installed (Homebrew, apt, dnf, zypper, apk, pacman or the download), with its re
 curl -fsSL https://raw.githubusercontent.com/rohit267/net-merge/main/install.sh | sh -s -- uninstall
 ```
 
-**Windows**: paste this into PowerShell, or use *Settings > Apps > Installed apps > net-merge > Uninstall*.
+**Windows**: paste this into PowerShell, or use _Settings > Apps > Installed apps > net-merge > Uninstall_.
 
 ```
 & "$env:ProgramFiles\net-merge\net-merge.exe" quit; Start-Process "$env:ProgramFiles\net-merge\unins000.exe" '/SILENT' -Verb RunAs -Wait
@@ -245,7 +246,7 @@ net-merge quit; net-merge autostart off; sudo net-merge uninstall; brew uninstal
 net-merge quit; net-merge autostart off; sudo net-merge uninstall
 ```
 
-**Debian, Ubuntu, Linux Mint, Pop!_OS, Raspberry Pi OS** (apt):
+**Debian, Ubuntu, Linux Mint, Pop!\_OS, Raspberry Pi OS** (apt):
 
 ```
 net-merge quit; net-merge autostart off; sudo apt remove -y net-merge && sudo rm -f /etc/apt/sources.list.d/net-merge.list /usr/share/keyrings/net-merge.gpg
@@ -314,19 +315,21 @@ net-merge needs **two or more** real connections. Use Wi-Fi plus one of these: a
 hotspot), an Ethernet cable, or a second Wi-Fi. Plug it in and net-merge adds it within a few seconds.
 When you unplug it, its connections move to the others.
 
-**Windows and Linux:** plug the phone in and turn on *USB tethering* (Android) or *Personal Hotspot*
+**Windows and Linux:** plug the phone in and turn on _USB tethering_ (Android) or _Personal Hotspot_
 (iPhone). That is all.
 
 **Mac with an iPhone** (nothing extra to install)
-1. Plug the iPhone in with a cable. Tap *Trust* on the iPhone if it asks.
-2. On the iPhone, open *Settings > Personal Hotspot* and turn on *Allow Others to Join*.
+
+1. Plug the iPhone in with a cable. Tap _Trust_ on the iPhone if it asks.
+2. On the iPhone, open _Settings > Personal Hotspot_ and turn on _Allow Others to Join_.
 3. An **iPhone USB** network appears on the Mac. net-merge adds it in a few seconds.
 
 **Mac with an Android phone** (needs the app **TetherKit**)
 
 macOS cannot use Android USB tethering by itself. The app **TetherKit** adds that support.
+
 1. Install and open TetherKit.
-2. Plug the phone in and turn on *USB tethering* in the phone's settings.
+2. Plug the phone in and turn on _USB tethering_ in the phone's settings.
 3. Click **Apply** in TetherKit. net-merge adds the new network in a few seconds.
 
 > **Start net-merge first, then connect the Android phone.** macOS drops the TetherKit connection each
@@ -341,35 +344,37 @@ net-merge when you do not want that.
 1. Start net-merge. A tray icon appears (menu bar on Mac).
 2. The icon is **green** when it is merging and **grey** when it is paused.
 3. **It pauses by itself** when fewer than two connections have internet, because there is nothing to
-   merge, and the menu says *Paused: one connection*. It **starts again by itself** when a second
+   merge, and the menu says _Paused: one connection_. It **starts again by itself** when a second
    connection works. If you pause or start it yourself, that choice wins: it will not start again after
-   you paused it. Untick *Pause when there is only one connection* in the menu to switch this off, or run
+   you paused it. Untick _Pause when there is only one connection_ in the menu to switch this off, or run
    `net-merge tray -auto-pause=false`.
 4. **Hover** the icon to see the speed of each connection and the total.
 5. **Right-click** the icon (on Mac, click it) to open the menu. It shows each connection's speed, how
-   many connections net-merge gave it, and the buttons *Pause merging* / *Start merging* and *Quit*. The
-   line above *Quit* is the version you are running, like `v0.3.3`. It reads the newest release number
-   from GitHub (at start, and again every 6 hours) and turns into *Update to v0.3.4* if there is one;
+   many connections net-merge gave it, and the buttons _Pause merging_ / _Start merging_ and _Quit_. The
+   line above _Quit_ is the version you are running, like `v0.3.3`. It reads the newest release number
+   from GitHub (at start, and again every 6 hours) and turns into _Update to v0.3.4_ if there is one;
    click it to open the release page. Click a connection to cap it at 1, 2, 5, 10, 20, 50 or 100 Mbit/s
-   (or *Unlimited*). For any other speed, from a terminal: `net-merge limit "Ethernet 2" 25` (Mbit/s; 0 or
+   (or _Unlimited_). For any other speed, from a terminal: `net-merge limit "Ethernet 2" 25` (Mbit/s; 0 or
    `unlimited` removes the cap), and `net-merge limit` lists what is set. The cap covers its downloads and
    uploads and is remembered after a restart. Only traffic net-merge relays is capped: an app bound directly
    to an adapter (for example qBittorrent on a fixed interface) ignores it.
-6. To start it at sign-in: tick *Start at sign-in* in the menu (or the box in the Windows installer, or run
+6. To start it at sign-in: tick _Start at sign-in_ in the menu (or the box in the Windows installer, or run
    `net-merge autostart on`). On a Mac this needs `sudo net-merge install` once.
 
 Tips:
-- Torrent clients already use every connection. Leave qBittorrent's network interface on *Any interface*.
+
+- Torrent clients already use every connection. Leave qBittorrent's network interface on _Any interface_.
 - **Faster browser downloads.** A browser downloads a file over one connection, so it uses one link. Chrome,
   Edge, Brave and other Chromium browsers can split it over several connections instead:
   1. Open `chrome://flags/#enable-parallel-downloading` (Edge: `edge://flags/#enable-parallel-downloading`,
      Brave: `brave://flags/#enable-parallel-downloading`).
-  2. Set *Parallel downloading* to *Enabled* and click *Relaunch*.
+  2. Set _Parallel downloading_ to _Enabled_ and click _Relaunch_.
 
   Firefox has no such setting; for big files use a download manager, for example `aria2c -x 8 -s 8 <link>`.
   Splitting only helps when the server allows downloading parts of a file, which most large download
   sites do.
-- Leave *Use all adapters (IPv6 only if every adapter has it)* ticked. Untick it only if you must reach a
+
+- Leave _Use all adapters (IPv6 only if every adapter has it)_ ticked. Untick it only if you must reach a
   site that only has IPv6.
 - `net-merge list` shows which connections are used and why others are skipped. `net-merge status`
   shows live numbers.
@@ -408,12 +413,13 @@ through the VPN.
 Run `net-merge list`. It shows which connections are used and why the others are skipped, for example
 "no default gateway" (the link has no internet yet).
 
-- **iPhone on a Mac:** plug it in, tap *Trust*, and turn on *Settings > Personal Hotspot > Allow Others to
-  Join*. If the **iPhone USB** network in *System Settings > Network* stays inactive, turn off its
+- **iPhone on a Mac:** plug it in, tap _Trust_, and turn on _Settings > Personal Hotspot > Allow Others to
+  Join_. If the **iPhone USB** network in _System Settings > Network_ stays inactive, turn off its
   **Disable unless needed** switch.
 - **Android on a Mac:** install **TetherKit** and click **Apply** (see above).
-- **Phone on Windows:** if the phone does not appear in *Network Settings*, install your phone maker's USB
+- **Phone on Windows:** if the phone does not appear in _Network Settings_, install your phone maker's USB
   driver.
+
 </details>
 
 <details>
@@ -429,7 +435,7 @@ Start net-merge first, then connect the phone. If it vanishes, click **Apply** i
 <br>
 
 Windows can switch Wi-Fi off when Ethernet is plugged in. Open the Group Policy Editor (`gpedit.msc`),
-go to *Computer Configuration > Administrative Templates > Network > Windows Connection Manager*, and set
+go to _Computer Configuration > Administrative Templates > Network > Windows Connection Manager_, and set
 **Minimize the number of simultaneous connections to the Internet or a Windows domain** to **Disabled**.
 </details>
 
@@ -438,7 +444,7 @@ go to *Computer Configuration > Administrative Templates > Network > Windows Con
 <br>
 
 The apps are not code-signed yet. On macOS run `xattr -d com.apple.quarantine net-merge`. On Windows click
-*More info*, then *Run anyway*.
+_More info_, then _Run anyway_.
 </details>
 
 <details>
@@ -446,9 +452,9 @@ The apps are not code-signed yet. On macOS run `xattr -d com.apple.quarantine ne
 <br>
 
 net-merge only has something to do with two or more connections that have internet, so it waits. Plug
-in or connect the second one (see *Add a second connection*) and it starts by itself after a few seconds.
-To merge anyway, choose *Start merging* (it then stays on until a second connection has come and gone), or
-untick *Pause when there is only one connection*.
+in or connect the second one (see _Add a second connection_) and it starts by itself after a few seconds.
+To merge anyway, choose _Start merging_ (it then stays on until a second connection has come and gone), or
+untick _Pause when there is only one connection_.
 
 Switching merging on or off cuts the connections that are open at that moment, which is why it waits 10
 seconds with nothing moving before pausing (2 minutes if a download or upload is still going) and
@@ -461,8 +467,8 @@ and never switches by itself more than once every 30 seconds.
 <br>
 
 On Windows it may be behind the `^` arrow next to the clock. On macOS it is in the menu bar. On Linux the
-desktop needs StatusNotifierItem support (KDE, XFCE, Cinnamon, LXQt, Budgie, or GNOME with the *AppIndicator
-and KStatusNotifierItem Support* extension).
+desktop needs StatusNotifierItem support (KDE, XFCE, Cinnamon, LXQt, Budgie, or GNOME with the _AppIndicator
+and KStatusNotifierItem Support_ extension).
 </details>
 
 <details>

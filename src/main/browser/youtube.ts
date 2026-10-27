@@ -677,9 +677,7 @@ export class YoutubeDownloads {
 
     const videos = formats.filter(
       (format) =>
-        format.vcodec &&
-        format.vcodec !== 'none' &&
-        (format.height || 0) <= (choice.height || 0)
+        format.vcodec && format.vcodec !== 'none' && (format.height || 0) <= (choice.height || 0)
     )
     const byVideoQuality = (a: YoutubeFormat, b: YoutubeFormat): number =>
       (b.height || 0) - (a.height || 0) ||
@@ -688,8 +686,7 @@ export class YoutubeDownloads {
       .filter((format) => format.acodec && format.acodec !== 'none')
       .sort(
         (a, b) =>
-          (b.height || 0) - (a.height || 0) ||
-          this.compareAudioPreference(a, b, originalLanguage)
+          (b.height || 0) - (a.height || 0) || this.compareAudioPreference(a, b, originalLanguage)
       )[0]
     const videoOnly = videos
       .filter((format) => !format.acodec || format.acodec === 'none')
@@ -757,8 +754,8 @@ export class YoutubeDownloads {
     const original = normalize(originalLanguage)
     return Boolean(
       track &&
-        original &&
-        (track === original || track.startsWith(original + '-') || original.startsWith(track + '-'))
+      original &&
+      (track === original || track.startsWith(original + '-') || original.startsWith(track + '-'))
     )
   }
   private async downloadStream(

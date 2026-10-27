@@ -104,7 +104,7 @@ The optional `FluxFetch-Chrome.crx` is a CRX3 package, **not a Chrome Web Store 
 4. Open the extension popup, confirm **Connected**, and refresh webpages.
 5. Repeat temporary loading after Firefox restarts.
 
-**This release's Firefox package is unsigned and temporary.** Renaming the ZIP to .xpi does not make it permanently installable in standard Firefox. Persistent distribution requires Mozilla signing. The release also includes FluxFetch-Firefox-source-2.0.zip for the source-code request in Mozilla's review workflow. See [Mozilla's instructions](https://extensionworkshop.com/documentation/develop/temporary-installation/) and the [FluxFetch browser guide](docs/BROWSER-SETUP.md).
+**This release's Firefox 2.1 package is unsigned and temporary.** Renaming the ZIP to .xpi does not make it permanently installable in standard Firefox. Persistent distribution requires Mozilla signing. The release also includes FluxFetch-Firefox-source-2.1.zip for the source-code request in Mozilla's review workflow. See [Mozilla's instructions](https://extensionworkshop.com/documentation/develop/temporary-installation/) and the [FluxFetch browser guide](docs/BROWSER-SETUP.md).
 
 ## Using torrents
 

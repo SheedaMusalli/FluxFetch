@@ -68,6 +68,7 @@ console.log('PASS: CRX3 RSA signature, embedded ZIP, manifest key and native-hos
 const firefoxZip = new AdmZip(path.join(root, 'release/FluxFetch-Firefox.zip'))
 const firefoxManifest = JSON.parse(firefoxZip.readAsText('manifest.json'))
 assert.equal(firefoxManifest.manifest_version, 3)
+assert.equal(firefoxManifest.version, '2.1')
 assert.deepEqual(firefoxManifest.background, { scripts: ['background.js'], type: 'module' })
 assert.equal(firefoxManifest.browser_specific_settings.gecko.id, 'fluxfetch@fluxfetch.app')
 assert.deepEqual(firefoxManifest.browser_specific_settings.gecko.data_collection_permissions, {
@@ -89,3 +90,11 @@ for (const name of ['background.js', 'page.js', 'page-discovery.js', 'popup.js',
 console.log(
   'PASS: Firefox MV3 package, fixed add-on ID, data declaration, native messaging, and cloned source'
 )
+
+const edgeZip = new AdmZip(path.join(root, 'release/FluxFetch-Edge.zip'))
+const edgeManifest = JSON.parse(edgeZip.readAsText('manifest.json'))
+assert.equal(edgeManifest.manifest_version, 3)
+assert.equal(edgeManifest.version, '2.0')
+assert.ok(!edgeManifest.key, 'Edge package must not contain the Chrome-only key field')
+assert.ok(edgeZip.readFile('icon.png'))
+console.log('PASS: Edge package manifest omits Chrome identity key and includes extension assets')

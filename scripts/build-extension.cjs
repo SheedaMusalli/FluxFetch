@@ -70,6 +70,7 @@ const firefoxManifestPath = path.join(firefoxDir, 'manifest.json')
 const firefoxManifest = JSON.parse(fs.readFileSync(firefoxManifestPath, 'utf8'))
 delete firefoxManifest.key
 delete firefoxManifest.minimum_chrome_version
+firefoxManifest.version = '2.1'
 firefoxManifest.background = { scripts: ['background.js'], type: 'module' }
 firefoxManifest.browser_specific_settings = {
   gecko: {
@@ -83,6 +84,15 @@ fs.writeFileSync(
   path.join(firefoxDir, 'README.md'),
   '# FluxFetch for Firefox\n\nInstall the FluxFetch Windows app first. Open `about:debugging` → **This Firefox** → **Load Temporary Add-on…**, then select this folder’s `manifest.json`. Confirm **Connected** in the popup and refresh webpages. This release is unsigned: reload the temporary add-on after Firefox restarts. Persistent installation requires Mozilla signing; no signed XPI is included. Full guide: https://github.com/SheedaMusalli/FluxFetch/blob/main/docs/BROWSER-SETUP.md\n'
 )
+
+// Edge rejects Chromium packages that carry Chrome's extension identity key.
+const edgeDir = path.join(root, 'extension-edge')
+fs.mkdirSync(edgeDir, { recursive: true })
+fs.cpSync(path.join(root, 'extension'), edgeDir, { recursive: true })
+const edgeManifestPath = path.join(edgeDir, 'manifest.json')
+const edgeManifest = JSON.parse(fs.readFileSync(edgeManifestPath, 'utf8'))
+delete edgeManifest.key
+fs.writeFileSync(edgeManifestPath, `${JSON.stringify(edgeManifest, null, 2)}\n`)
 // Keep generated metadata in the same format enforced by `npm run format:check`.
 execFileSync(
   process.execPath,
@@ -92,6 +102,7 @@ execFileSync(
     manifestFile,
     path.join(root, 'native-host', 'com.fluxfetch.browser.json'),
     firefoxManifestPath,
+    edgeManifestPath,
     firefoxManifestFile
   ],
   { stdio: 'inherit', env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } }
@@ -106,6 +117,11 @@ firefoxArchive.writeZip(firefoxZipFile)
 const firefoxXpiFile = path.join(out, 'FluxFetch-Firefox.xpi')
 if (fs.existsSync(firefoxXpiFile)) fs.unlinkSync(firefoxXpiFile)
 firefoxArchive.writeZip(firefoxXpiFile)
+const edgeZipFile = path.join(out, 'FluxFetch-Edge.zip')
+if (fs.existsSync(edgeZipFile)) fs.unlinkSync(edgeZipFile)
+const edgeArchive = new AdmZip()
+edgeArchive.addLocalFolder(edgeDir)
+edgeArchive.writeZip(edgeZipFile)
 const zipFile = path.join(out, 'FluxFetch-Chrome.zip')
 if (fs.existsSync(zipFile)) fs.unlinkSync(zipFile)
 const archive = new AdmZip()

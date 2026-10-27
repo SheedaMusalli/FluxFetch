@@ -39,7 +39,7 @@ Official references: [Edge sideloading](https://learn.microsoft.com/en-us/micros
 4. Open the popup and confirm **Connected**. Refresh existing webpages.
 5. Repeat loading after Firefox restarts.
 
-The release includes FluxFetch-Firefox-source-2.0.zip as a buildable source bundle for Mozilla's source-code request. Submit FluxFetch-Firefox.xpi or the Firefox ZIP for add-on review and signing; neither package is pre-signed.
+The release includes FluxFetch-Firefox-source-2.1.zip as a buildable source bundle for Mozilla's source-code request. Submit FluxFetch-Firefox.xpi or the Firefox ZIP for add-on review and signing; neither package is pre-signed. The Edge ZIP omits Chrome's manifest `key` field, which Edge rejects during Partner Center package validation.
 
 The bundled copy lives at `<installation folder>\resources\extension-firefox`. Keep its ID `fluxfetch@fluxfetch.app` unchanged so it matches the Mozilla native-host allowlist.
 

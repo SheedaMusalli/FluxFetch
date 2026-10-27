@@ -36,12 +36,13 @@ files:
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
-  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.eslintcache,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!config/**'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   # koffi is only loaded on Linux (network/deviceBinding.ts) and ships prebuilds for every OS.
   - '!node_modules/koffi/{src,vendor,doc}/**'
   - '!node_modules/koffi/build/koffi/!(linux_x64|linux_arm64)/**'
-  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!{tsconfig.json,config/tsconfig.node.json,config/tsconfig.web.json,config/tsconfig.e2e.json}'
 asarUnpack:
   - resources/icon-dark.png
   - resources/icon.ico

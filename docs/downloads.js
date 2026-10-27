@@ -3,7 +3,7 @@
  * one to put in front of a visitor. Plain ES5 so the page can load it as-is; the release-notes
  * script and the tests load it with require().
  *
- * Everything is derived from the release's file names (see electron-builder.yml for how they're
+ * Everything is derived from the release's file names (see config/electron-builder.yml for how they're
  * made), so a file that isn't recognised — update metadata, blockmaps, a snap — is simply left
  * out, and a new build shows up as soon as its name says what it is.
  */

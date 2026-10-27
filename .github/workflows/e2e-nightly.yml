@@ -43,7 +43,7 @@ jobs:
         run: npx playwright install chromium
 
       - name: Build
-        run: npx electron-vite build
+        run: npx electron-vite build --config config/electron.vite.config.ts
 
       - name: Prepare bundled torrent runtime (Windows)
         if: runner.os == 'Windows'
@@ -53,18 +53,18 @@ jobs:
       # Linux runners have it); elsewhere they skip themselves.
       - name: Full suite (Linux)
         if: runner.os == 'Linux'
-        run: xvfb-run --auto-servernum npx playwright test
+        run: xvfb-run --auto-servernum npx playwright test --config config/playwright.config.ts
         env:
           FLUXFETCH_E2E_SKIP_BUILD: '1'
 
       - name: Full suite (Windows)
         if: runner.os == 'Windows'
-        run: npx playwright test
+        run: npx playwright test --config config/playwright.config.ts
         env:
           FLUXFETCH_E2E_SKIP_BUILD: '1'
 
       - name: Race-prone tests, repeated
-        run: ${{ runner.os == 'Linux' && 'xvfb-run --auto-servernum ' || '' }}npx playwright test e2e/lifecycle.spec.ts e2e/recovery.spec.ts --repeat-each=10
+        run: ${{ runner.os == 'Linux' && 'xvfb-run --auto-servernum ' || '' }}npx playwright test --config config/playwright.config.ts e2e/lifecycle.spec.ts e2e/recovery.spec.ts --repeat-each=10
         env:
           FLUXFETCH_E2E_SKIP_BUILD: '1'
 

@@ -149,7 +149,7 @@ npm run lint
 npm run typecheck
 npm run test:extension
 npm run test:torrent-engine
-npx playwright test e2e/torrent.spec.ts e2e/transferStatus.spec.ts --workers=1
+npx playwright test --config config/playwright.config.ts e2e/torrent.spec.ts e2e/transferStatus.spec.ts --workers=1
 ```
 
 Chromium identity depends on a private local extension signing key. Keep it private; a new key produces a new ID and matching native-host registration.

@@ -57,5 +57,5 @@ export default async function globalSetup(): Promise<void> {
     )
   }
   if (process.env.FLUXFETCH_E2E_SKIP_BUILD === '1') return
-  execSync('npx electron-vite build', { stdio: 'inherit' })
+  execSync('npx electron-vite build --config config/electron.vite.config.ts', { stdio: 'inherit' })
 }

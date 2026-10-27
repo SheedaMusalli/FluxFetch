@@ -91,10 +91,10 @@ Validation commands:
 ```powershell
 npm run lint
 npm run typecheck
-npx playwright test e2e/download.spec.ts e2e/lifecycle.spec.ts --workers=2
+npx playwright test --config config/playwright.config.ts e2e/download.spec.ts e2e/lifecycle.spec.ts --workers=2
 # Uses an isolated browser profile, test-only native host and named pipe.
 $env:FLUXFETCH_TEST_BROWSER = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
-npx playwright test e2e/browser.spec.ts e2e/pageButtons.spec.ts e2e/youtube.spec.ts --workers=1
+npx playwright test --config config/playwright.config.ts e2e/browser.spec.ts e2e/pageButtons.spec.ts e2e/youtube.spec.ts --workers=1
 node scripts/test-youtube.cjs
 node scripts/verify-extension.cjs
 ```

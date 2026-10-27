@@ -43,9 +43,9 @@ export function CompleteScreen({
   // "Chunks" in the block grid means byte ranges, not parallel connections.
   const totalChunkCount = download.totalBlocks ?? download.blocks?.length ?? 1
 
-  const handleReveal = (): void => {
-    void window.fluxfetch.revealInFolder(download.destinationPath)
-    void window.fluxfetch.closeWindow()
+  const handleReveal = async (): Promise<void> => {
+    await window.fluxfetch.revealInFolder(download.destinationPath)
+    await window.fluxfetch.closeWindow()
   }
   const handleOpen = async (): Promise<void> => {
     setOpenError(null)

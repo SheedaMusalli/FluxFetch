@@ -471,7 +471,9 @@ test.describe('UI journeys @smoke', () => {
 
     const reveal = progressPage.getByRole('button', { name: /Reveal in Finder|Show in folder/ })
     await expect(reveal).toBeVisible()
-    await reveal.click()
+    const progressWindowClosed = progressPage.waitForEvent('close')
+    await reveal.evaluate((button: HTMLButtonElement) => button.click())
+    await progressWindowClosed
     const { destinationPath } = (await fluxfetch.current())!
     await expect
       .poll(() =>

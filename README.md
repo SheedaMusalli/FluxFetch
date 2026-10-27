@@ -105,7 +105,7 @@ New and restored torrents use normal swarm piece selection, with DHT/PEX and sup
 
 The extension adds controls for supported public YouTube videos and direct audio/video sources. Choose a format and confirm the job. The desktop downloader prefers audio tracks identified as original, then tracks matching the video's language, before falling back to the best available audio. Verified tools download on first use; FFmpeg is fetched when muxing is needed.
 
-DRM, live broadcasts, interactive challenges and some sign-in/region restrictions remain unsupported. General HLS/DASH, `blob:` URLs and POST-generated files are not ordinary direct-file capture. YouTube jobs do not persist across an app restart. See [Windows integration details](WINDOWS-SETUP.md).
+DRM, live broadcasts, interactive challenges and some sign-in/region restrictions remain unsupported. General HLS/DASH, `blob:` URLs and POST-generated files are not ordinary direct-file capture. YouTube jobs do not persist across an app restart. See [Windows integration details](docs/WINDOWS-SETUP.md).
 
 ## Screenshots
 
@@ -142,7 +142,7 @@ npm ci
 npm run build:win
 ```
 
-Installer and browser packages appear in `release/`. See [Windows build instructions](WINDOWS-SETUP.md), [torrent architecture](integrations/torrent-engine/README.md) and [component notices](THIRD-PARTY-MEDIA.md).
+Installer and browser packages appear in `release/`. See [Windows build instructions](docs/WINDOWS-SETUP.md), [torrent architecture](integrations/torrent-engine/README.md) and [component notices](docs/THIRD-PARTY-MEDIA.md).
 
 ```powershell
 npm run lint
@@ -158,4 +158,4 @@ Chromium identity depends on a private local extension signing key. Keep it priv
 
 Downloads transfer directly between your PC and their sources. Browser integration uses a local Native Messaging helper. Authentication secrets use Windows encryption where supported. Speed tests contact Cloudflare measurement endpoints. Torrents contact trackers and peers; public torrents may use DHT/PEX. Optional remote access uses authenticated HTTPS and a local certificate; verify its fingerprint before trusting it.
 
-FluxFetch application code uses the [MIT License](LICENSE). Bundled engines, drivers and media tools retain their own licenses: see [THIRD-PARTY-MEDIA.md](THIRD-PARTY-MEDIA.md) and [third-party-licenses](third-party-licenses).
+FluxFetch application code uses the [MIT License](LICENSE). Bundled engines, drivers and media tools retain their own licenses: see [THIRD-PARTY-MEDIA.md](docs/THIRD-PARTY-MEDIA.md) and [third-party-licenses](third-party-licenses).

@@ -1,6 +1,6 @@
 # FluxFetch for Windows + Chrome
 
-FluxFetch for Windows **2.0.0**, x64. The desktop app uses Electron, and the browser helper is a compiled Windows .NET executable. License terms and notices are in [LICENSE](LICENSE) and [THIRD-PARTY-MEDIA.md](THIRD-PARTY-MEDIA.md).
+FluxFetch for Windows **2.0.0**, x64. The desktop app uses Electron, and the browser helper is a compiled Windows .NET executable. License terms and notices are in [LICENSE](../LICENSE) and [THIRD-PARTY-MEDIA.md](THIRD-PARTY-MEDIA.md).
 
 ## Update an existing installation
 
@@ -16,7 +16,7 @@ YouTube may reject expired cookies or block the network. Repeated sign-in retrie
 
 ## Install
 
-For browser setup, see the [browser guide](docs/BROWSER-SETUP.md). Install Firefox from [Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fluxfetch-integration-module/); Firefox handles its updates.
+For browser setup, see the [browser guide](BROWSER-SETUP.md). Install Firefox from [Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fluxfetch-integration-module/); Firefox handles its updates.
 
 1. Run **fluxfetch-2.0.0-setup.exe**. Choose your installation folder. The installer creates shortcuts and registers the browser helper for your Windows account.
 2. Extract **FluxFetch-Chrome.zip** into a permanent folder.

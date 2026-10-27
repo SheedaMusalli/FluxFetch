@@ -7,7 +7,7 @@ directories:
 extraResources:
   - from: LICENSE
     to: legal/LICENSE
-  - from: THIRD-PARTY-MEDIA.md
+  - from: docs/THIRD-PARTY-MEDIA.md
     to: legal/THIRD-PARTY-MEDIA.md
   - from: third-party-licenses
     to: legal/third-party-licenses

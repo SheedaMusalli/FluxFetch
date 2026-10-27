@@ -507,7 +507,7 @@ More flags and details are in [docs/DEVELOPING.md](docs/DEVELOPING.md).
 - What changed in each version: [CHANGELOG.md](CHANGELOG.md)
 - New versions come out once a week when something changed. Important fixes come out right away.
 - How it works, building from source, tests: [docs/DEVELOPING.md](docs/DEVELOPING.md)
-- Want to help? [CONTRIBUTING.md](CONTRIBUTING.md). Found a security problem? [SECURITY.md](SECURITY.md)
+- Want to help? [CONTRIBUTING.md](../../.github/CONTRIBUTING.md). Found a security problem? [SECURITY.md](SECURITY.md)
 - License: MIT, see `LICENSE`. Third-party parts: `THIRD-PARTY-NOTICES.md`.
 
 ## Support

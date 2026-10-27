@@ -7,7 +7,7 @@ Keep changes focused and run the checks that cover them.
 FluxFetch is a Windows desktop app. Use Windows 10/11 x64 with Node.js 22.12+, npm, .NET SDK, Windows PowerShell, and (for OmniLink) the Rust MSVC toolchain.
 
 ```powershell
-git clone https://github.com/SheedaMusalli/FluxFetch.git
+git clone https://github.com/SheedaMusalli/FluxFetch-Download-Manager.git
 cd FluxFetch
 npm ci
 npm run dev

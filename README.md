@@ -4,40 +4,29 @@
 
 # FluxFetch
 
-**A Windows download manager for files, torrents, and browser handoff.**
+**A Windows app for downloads, torrents, and browser integration.**
 
 Concurrent downloads · Built-in torrents · Net Merge · OmniLink · Browser integration
 
-[![Latest release](https://img.shields.io/github/v/release/SheedaMusalli/FluxFetch?label=latest%20release)](https://github.com/SheedaMusalli/FluxFetch/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/SheedaMusalli/FluxFetch-Download-Manager?label=latest%20release)](https://github.com/SheedaMusalli/FluxFetch-Download-Manager/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011%20x64-9e8cff)](#install-fluxfetch)
 [![License](https://img.shields.io/badge/license-MIT-56d9c0)](LICENSE)
 
-[Download FluxFetch 3.0.0](https://github.com/SheedaMusalli/FluxFetch/releases/latest) · [Browser setup](docs/BROWSER-SETUP.md) · [What's new in v3](docs/release-notes-3.0.0.md) · [Report an issue](https://github.com/SheedaMusalli/FluxFetch/issues)
+[Download FluxFetch 3.0.0](https://github.com/SheedaMusalli/FluxFetch-Download-Manager/releases/latest) · [Browser setup](docs/BROWSER-SETUP.md) · [What's new in v3](docs/release-notes-3.0.0.md) · [Report an issue](https://github.com/SheedaMusalli/FluxFetch-Download-Manager/issues)
 
 </div>
 
-FluxFetch is a Windows app for managing downloads and torrents. It can run several direct downloads at once, split supported files across connections, and resume transfers after a restart. It also includes Net Merge, OmniLink, archive tools, browser handoff, and a format picker for supported public YouTube videos.
+FluxFetch is a Windows app for managing downloads and torrents. It can run several direct downloads at once, split supported files across connections, and resume transfers after a restart. It also includes Net Merge, OmniLink, archive tools, and browser extensions for Chrome, Edge, and Firefox.
 
-## Features
+## Main features
 
-| Feature               | What you can do                                                                                                                                                                                                                                                                                       |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Parallel downloads    | Run several direct downloads at once, choose adapters, resume after restart, and retry failed parts.                                                                                                                                                                                                  |
-| Built-in torrents     | Download and seed magnet links and `.torrent` files in FluxFetch. No separate torrent client or Python install is needed.                                                                                                                                                                             |
-| Live progress         | See each active download and torrent in the library, with its own progress, speed, ETA, and controls. The bottom transfer footer is for torrents.                                                                                                                                                     |
-| Torrent details       | Inspect files, per-file progress, trackers and errors, connected peers, ETA, uploads, ratio, DHT nodes, listening port and full content location. Open the download folder directly.                                                                                                                  |
-| OmniLink              | Route eligible Steam and other launcher connections through selected adapters. View launcher activity in the tray app.                                                                                                                                                                                |
-| Net Merge             | Start and stop the user-mode engine, inspect adapters and quotas, and set per-adapter limits. Separate Internet connections are needed to add capacity.                                                                                                                                               |
-| Browser integration   | Capture supported downloads, send links from the context menu, find direct media, and choose formats for supported public YouTube videos. Chrome and Edge packages are in the release; Firefox is on [Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fluxfetch-integration-module/). |
-| Capture filters       | Automatic capture leaves ordinary images and known downloads under 128 KiB in the browser. Explicit actions and torrent links are handled separately.                                                                                                                                                 |
-| Download library      | View active transfers and completed history with per-download controls, filters, search, and resizable columns. Column choices are saved.                                                                                                                                                             |
-| File removal          | Remove history while keeping files, or explicitly confirm disk deletion. Torrents have separate keep-files and delete-files actions.                                                                                                                                                                  |
-| Queues and scheduling | Add batches of URLs, manage waiting downloads and schedule queue starts.                                                                                                                                                                                                                              |
-| Torrent limits        | Set download and upload bandwidth caps for torrents from their details panel.                                                                                                                                                                                                                         |
-| Network tools         | Test Internet and combined-network speed, apply rate limits, configure HTTP/HTTPS/SOCKS proxies and save site authentication.                                                                                                                                                                         |
-| Archive tools         | Browse, search, test and extract archives; 7-Zip handles encrypted ZIP/AES and RAR formats. Add or remove archive entries in the manager.                                                                                                                                                             |
-| Remote access         | Manage supported actions through an authenticated HTTPS dashboard. It is off by default.                                                                                                                                                                                                              |
-| Windows integration   | Clipboard download prompts, magnet and `.torrent` handling, system tray operation, and update checks against FluxFetch's GitHub releases.                                                                                                                                                             |
+The Downloads Library shows every active transfer alongside completed history. Direct downloads run at the same time, with their own progress, speed, pause/resume controls, and recovery after restart. You can also queue URL batches, schedule them, and remove history without deleting files.
+
+FluxFetch handles magnet links and `.torrent` files without a separate torrent client or Python installation. The torrent panel shows files, peers, trackers, and transfer limits; the library keeps each torrent visible while it downloads or seeds.
+
+The browser extensions can capture supported downloads, send links from the context menu, find direct media, and open the YouTube format picker for supported public videos. Install Firefox from [Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fluxfetch-integration-module/); Chrome and Edge packages are in the GitHub release.
+
+The archive manager can browse and extract ZIP and RAR files, including encrypted archives. Network tools include speed tests, bandwidth limits, proxies, and per-site authentication. Optional remote access is off until you enable it.
 
 ## OmniLink for Steam
 
@@ -63,7 +52,7 @@ Open **Net Merge** in the Downloads Library to check adapters and budgets, set s
 
 ## Install FluxFetch
 
-1. Open [Latest release](https://github.com/SheedaMusalli/FluxFetch/releases/latest) and expand **Assets**.
+1. Open [Latest release](https://github.com/SheedaMusalli/FluxFetch-Download-Manager/releases/latest) and expand **Assets**.
 2. Download **`fluxfetch-3.0.0-setup.exe`**. GitHub's **Source code** ZIP is for developers, not installation.
 3. Run setup on **Windows 10/11 x64**, review the license, choose the available installation options and destination, then review and install.
 4. Existing users can choose **Update** to preserve settings/history, or **Fresh install** to reset this Windows account's settings, credentials and history while retaining downloaded files. Setup automatically closes the running app; finish important work first.
@@ -147,7 +136,7 @@ DRM, live broadcasts, interactive challenges and some sign-in/region restriction
 Requirements: Windows 10/11 x64, Node.js 22.12+, npm, Windows PowerShell, Rust MSVC with C++ build tools for OmniLink, and the Windows .NET Framework C# compiler for the browser helper. The build fetches hash-pinned Python/libtorrent binaries; users do not need Python installed.
 
 ```powershell
-git clone https://github.com/SheedaMusalli/FluxFetch.git
+git clone https://github.com/SheedaMusalli/FluxFetch-Download-Manager.git
 cd FluxFetch
 npm ci
 npm run build:win

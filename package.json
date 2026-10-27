@@ -7,7 +7,7 @@
   "author": {
     "name": "FluxFetch"
   },
-  "homepage": "https://github.com/SheedaMusalli/FluxFetch",
+  "homepage": "https://github.com/SheedaMusalli/FluxFetch-Download-Manager",
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",

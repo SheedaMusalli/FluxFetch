@@ -3,7 +3,7 @@ import type { UpdateInfo } from '../shared/types'
 
 type ReleaseInfo = Omit<UpdateInfo, 'dismissed'>
 
-const REPO = 'SheedaMusalli/FluxFetch'
+const REPO = 'SheedaMusalli/FluxFetch-Download-Manager'
 export const UPDATE_PAGE_URL = `https://github.com/${REPO}/releases`
 
 function parseVersion(version: string): number[] {

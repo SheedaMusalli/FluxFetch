@@ -15,8 +15,8 @@ import { fileURLToPath } from 'node:url'
 
 const { FluxFetchDownloads: downloads } = createRequire(import.meta.url)('../docs/downloads.js')
 
-const REPO = 'SheedaMusalli/FluxFetch'
-const SITE = 'https://github.com/SheedaMusalli/FluxFetch/'
+const REPO = 'SheedaMusalli/FluxFetch-Download-Manager'
+const SITE = 'https://github.com/SheedaMusalli/FluxFetch-Download-Manager/'
 
 const [tag, arg] = process.argv.slice(2)
 if (!tag || !/^v\d/.test(tag)) {

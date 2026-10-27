@@ -256,11 +256,11 @@ test.describe('which download is offered', () => {
       size: 100 * 1048576,
       url: BASE + name
     }))
-    const text = D.markdown(files, 'https://github.com/SheedaMusalli/FluxFetch/')
+    const text = D.markdown(files, 'https://github.com/SheedaMusalli/FluxFetch-Download-Manager/')
     for (const name of SHIPPED) expect(text.split(BASE + name + ')')).toHaveLength(2)
     for (const name of NOISE) expect(text).not.toContain(name)
     expect(text).toContain('[Apple silicon]')
-    expect(text).toContain('https://github.com/SheedaMusalli/FluxFetch/#downloads')
+    expect(text).toContain('https://github.com/SheedaMusalli/FluxFetch-Download-Manager/#downloads')
     expect(text).toContain('`xattr -dr com.apple.quarantine /Applications/FluxFetch.app`')
   })
 })
@@ -393,7 +393,7 @@ test.describe('the download page', () => {
       await expect(page.locator('#asset-groups')).toContainText('Couldn’t load the latest release')
       await expect(page.locator('#primary-btn')).toHaveAttribute(
         'href',
-        'https://github.com/SheedaMusalli/FluxFetch/releases'
+        'https://github.com/SheedaMusalli/FluxFetch-Download-Manager/releases'
       )
     } finally {
       await close()

@@ -1,6 +1,6 @@
 # Connect your browser to FluxFetch
 
-Install [FluxFetch for Windows](https://github.com/SheedaMusalli/FluxFetch/releases/latest) first. Setup registers the local Native Messaging helper. Chrome and Edge use unpacked extension packages; install Firefox from [Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fluxfetch-integration-module/).
+Install [FluxFetch for Windows](https://github.com/SheedaMusalli/FluxFetch-Download-Manager/releases/latest) first. Setup registers the local Native Messaging helper. Chrome and Edge use unpacked extension packages; install Firefox from [Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fluxfetch-integration-module/).
 
 ## Choose a package
 

@@ -42,6 +42,9 @@ interface YoutubeFormat {
   height?: number
   vcodec?: string
   acodec?: string
+  format_note?: string
+  language?: string
+  language_preference?: number
   filesize?: number
   filesize_approx?: number
   has_drm?: boolean
@@ -51,6 +54,7 @@ interface VideoInfo {
   title?: string
   id?: string
   is_live?: boolean
+  language?: string
   formats?: YoutubeFormat[]
 }
 interface YouTubeCookie {
@@ -70,6 +74,7 @@ interface Job {
   message: string
   choices: Choice[]
   formats: YoutubeFormat[]
+  originalLanguage?: string
   inspectedAt?: number
   inspectPromise?: Promise<void>
   path?: string
@@ -407,6 +412,7 @@ export class YoutubeDownloads {
           'Live broadcasts are not supported. Try the archived video after the stream ends.'
         )
       job.title = String(info.title || 'YouTube video').slice(0, 200)
+      job.originalLanguage = typeof info.language === 'string' ? info.language : undefined
       job.formats = (info.formats || []).filter(
         (format) => !format.has_drm && (!format.url || this.validMediaUrl(format.url))
       )
@@ -532,8 +538,9 @@ export class YoutubeDownloads {
         job.formats = formats
         job.inspectedAt = Date.now()
         if (info.title) job.title = String(info.title).slice(0, 200)
+        if (typeof info.language === 'string') job.originalLanguage = info.language
       }
-      const selected = this.selectFormats(formats, choice)
+      const selected = this.selectFormats(formats, choice, job.originalLanguage)
       if (!selected.video && !selected.audio)
         throw new Error('That YouTube quality is no longer available. Reopen the quality menu.')
       const finalExtension = selected.video
@@ -659,33 +666,101 @@ export class YoutubeDownloads {
 
   private selectFormats(
     formats: YoutubeFormat[],
-    choice: Choice
+    choice: Choice,
+    originalLanguage?: string
   ): { video?: YoutubeFormat; audio?: YoutubeFormat } {
-    const audio = formats
-      .filter((f) => f.acodec && f.acodec !== 'none' && f.vcodec === 'none')
-      .sort(
-        (a, b) => (b.filesize || b.filesize_approx || 0) - (a.filesize || a.filesize_approx || 0)
-      )[0]
+    const audioFormats = formats
+      .filter((format) => format.acodec && format.acodec !== 'none' && format.vcodec === 'none')
+      .sort((a, b) => this.compareAudioPreference(a, b, originalLanguage))
+    const audio = audioFormats[0]
     if (choice.audioOnly) return { audio }
+
     const videos = formats.filter(
-      (f) => f.vcodec && f.vcodec !== 'none' && (f.height || 0) <= (choice.height || 0)
+      (format) =>
+        format.vcodec &&
+        format.vcodec !== 'none' &&
+        (format.height || 0) <= (choice.height || 0)
     )
+    const byVideoQuality = (a: YoutubeFormat, b: YoutubeFormat): number =>
+      (b.height || 0) - (a.height || 0) ||
+      (b.filesize || b.filesize_approx || 0) - (a.filesize || a.filesize_approx || 0)
     const combined = videos
-      .filter((f) => f.acodec && f.acodec !== 'none')
+      .filter((format) => format.acodec && format.acodec !== 'none')
       .sort(
         (a, b) =>
           (b.height || 0) - (a.height || 0) ||
-          (b.filesize || b.filesize_approx || 0) - (a.filesize || a.filesize_approx || 0)
+          this.compareAudioPreference(a, b, originalLanguage)
       )[0]
-    if (combined) return { video: combined }
-    const video = videos.sort(
-      (a, b) =>
-        (b.height || 0) - (a.height || 0) ||
-        (b.filesize || b.filesize_approx || 0) - (a.filesize || a.filesize_approx || 0)
-    )[0]
-    return { video, audio }
+    const videoOnly = videos
+      .filter((format) => !format.acodec || format.acodec === 'none')
+      .sort(byVideoQuality)[0]
+
+    if (combined) {
+      const combinedHasPreferredTrack =
+        audio &&
+        this.hasOriginalAudioSignal(combined, originalLanguage) &&
+        this.compareAudioPreference(combined, audio, originalLanguage) <= 0
+      const onlyOneAudioTrack = audioFormats.length <= 1 && !this.isDubbedAudio(combined)
+      if (!audio || !videoOnly || combinedHasPreferredTrack || onlyOneAudioTrack)
+        return { video: combined }
+    }
+
+    return { video: videoOnly || combined, audio }
   }
 
+  private compareAudioPreference(
+    a: YoutubeFormat,
+    b: YoutubeFormat,
+    originalLanguage?: string
+  ): number {
+    const originalA = /\boriginal\b/i.test(a.format_note || '')
+    const originalB = /\boriginal\b/i.test(b.format_note || '')
+    if (originalA !== originalB) return Number(originalB) - Number(originalA)
+
+    const languageA = this.languagesMatch(a.language, originalLanguage)
+    const languageB = this.languagesMatch(b.language, originalLanguage)
+    if (languageA !== languageB) return Number(languageB) - Number(languageA)
+
+    const preferenceA =
+      typeof a.language_preference === 'number' && Number.isFinite(a.language_preference)
+        ? a.language_preference
+        : Number.NEGATIVE_INFINITY
+    const preferenceB =
+      typeof b.language_preference === 'number' && Number.isFinite(b.language_preference)
+        ? b.language_preference
+        : Number.NEGATIVE_INFINITY
+    if (preferenceA !== preferenceB) return preferenceB - preferenceA
+
+    const dubbedA = this.isDubbedAudio(a)
+    const dubbedB = this.isDubbedAudio(b)
+    if (dubbedA !== dubbedB) return Number(dubbedA) - Number(dubbedB)
+
+    return (b.filesize || b.filesize_approx || 0) - (a.filesize || a.filesize_approx || 0)
+  }
+
+  private hasOriginalAudioSignal(format: YoutubeFormat, originalLanguage?: string): boolean {
+    return (
+      /\boriginal\b/i.test(format.format_note || '') ||
+      this.languagesMatch(format.language, originalLanguage) ||
+      (typeof format.language_preference === 'number' && format.language_preference >= 10)
+    )
+  }
+
+  private isDubbedAudio(format: YoutubeFormat): boolean {
+    return /\b(?:dub(?:bed)?|descriptive|audio description)\b/i.test(format.format_note || '')
+  }
+
+  private languagesMatch(trackLanguage?: string, originalLanguage?: string): boolean {
+    const normalize = (language?: string): string =>
+      typeof language === 'string' ? language.trim().toLowerCase().replace(/_/g, '-') : ''
+    const track = normalize(trackLanguage)
+    const original = normalize(originalLanguage)
+    return Boolean(
+      track &&
+        original &&
+        (track === original || track.startsWith(original + '-') || original.startsWith(track + '-'))
+    )
+  }
   private async downloadStream(
     job: Job,
     format: YoutubeFormat,

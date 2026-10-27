@@ -11,6 +11,7 @@ const url = 'https://www.youtube.com/watch?v=jNQXAC9IVRw'
 function fixture() {
   const children = [],
     calls = [],
+    downloadRequests = [],
     app = new EventEmitter(),
     exported = {}
   Object.assign(app, {
@@ -18,6 +19,20 @@ function fixture() {
     getAppPath: () => process.cwd(),
     getPath: () => 'test-downloads'
   })
+  const manager = {
+    async start(request) {
+      downloadRequests.push(request)
+      return 'download-' + downloadRequests.length
+    },
+    async getDownload(id) {
+      const request = downloadRequests[Number(id.slice('download-'.length)) - 1]
+      return { state: { id, status: 'completed', destinationPath: 'C:\\Downloads\\' + request.suggestedFileName, totalBytes: request.totalBytes, bytesDownloaded: request.totalBytes, speedBytesPerSec: 0 } }
+    },
+    async cancel() {},
+    async remove() {},
+    async publishMergedFile() {},
+    notifyExternalCompletion() {}
+  }
   const context = {
     exports: exported,
     process,
@@ -33,7 +48,7 @@ function fixture() {
       if (name === '../download/probe') return { probeUrl: async () => ({}) }
       if (name === '../download/paths') return { getDefaultTemporaryDir: () => 'temp', getSuggestedDownloadDir: () => 'test-downloads' }
       if (name === './mediaTools') return { ensureMediaTools: async () => 'media-tools' }
-      if (name === 'node:fs/promises') return { mkdir: async () => {} }
+      if (name === 'node:fs/promises') return { mkdir: async () => {}, mkdtemp: async () => 'temp', open: async () => ({ close: async () => {} }), rename: async () => {}, rm: async () => {}, readdir: async () => [], writeFile: async () => {} }
       if (name === 'node:child_process')
         return {
           execFileSync(_exe, args) {
@@ -60,7 +75,7 @@ function fixture() {
     }
   }
   vm.runInNewContext(source, context)
-  return { engine: new exported.YoutubeDownloads(), children, calls, app }
+  return { engine: new exported.YoutubeDownloads(manager, () => {}, async () => ({ accepted: true, destinationDir: 'test-downloads', temporaryDir: 'temp' })), children, calls, downloadRequests, app }
 }
 const next = () => new Promise((resolve) => setImmediate(resolve))
 async function ready(f) {
@@ -72,9 +87,9 @@ async function ready(f) {
       JSON.stringify({
         title: 'Test',
         formats: [
-          { height: 720, vcodec: 'avc1', acodec: 'none' },
+          { height: 720, vcodec: 'avc1', acodec: 'none', url: 'https://r1.googlevideo.com/video' },
           { height: 2160, vcodec: 'avc1', acodec: 'none', has_drm: true },
-          { vcodec: 'none', acodec: 'opus' }
+          { vcodec: 'none', acodec: 'opus', url: 'https://r1.googlevideo.com/audio', language: 'en', language_preference: 10 }
         ]
       }) + '\n'
     )
@@ -84,6 +99,31 @@ async function ready(f) {
   await next()
   return job.id
 }
+test('prefers original-language audio over a larger dubbed track and dubbed combined stream', () => {
+  const f = fixture()
+  const formats = [
+    { format_id: 'video-only-720', height: 720, vcodec: 'avc1', acodec: 'none', filesize: 2000 },
+    { format_id: 'combined-dub-720', height: 720, vcodec: 'avc1', acodec: 'mp4a', format_note: 'Dubbed', language: 'es', language_preference: -1, filesize: 20000 },
+    { format_id: 'audio-dub', vcodec: 'none', acodec: 'opus', format_note: 'Dubbed', language: 'es', language_preference: -1, filesize: 9000 },
+    { format_id: 'audio-original', vcodec: 'none', acodec: 'opus', format_note: 'Original', language: 'en', language_preference: 10, filesize: 1000 }
+  ]
+  const audio = f.engine.selectFormats(formats, { id: 'audio', audioOnly: true })
+  assert.equal(audio.audio.format_id, 'audio-original')
+  const video = f.engine.selectFormats(formats, { id: 'h720', height: 720 }, 'en-US')
+  assert.equal(video.video.format_id, 'video-only-720')
+  assert.equal(video.audio.format_id, 'audio-original')
+})
+
+test('matches the source language when yt-dlp omits original-track labels', () => {
+  const f = fixture()
+  const formats = [
+    { format_id: 'large-dub', vcodec: 'none', acodec: 'opus', language: 'es', filesize: 9000 },
+    { format_id: 'small-original', vcodec: 'none', acodec: 'opus', language: 'en', filesize: 1000 }
+  ]
+  const audio = f.engine.selectFormats(formats, { id: 'audio', audioOnly: true }, 'en-US')
+  assert.equal(audio.audio.format_id, 'small-original')
+})
+
 test('rejects other origins and format injection; only enumerated formats reach a shell-free process', async () => {
   const f = fixture()
   await assert.rejects(
@@ -98,13 +138,13 @@ test('rejects other origins and format injection; only enumerated formats reach 
   await assert.rejects(
     f.engine.dispatch({ action: 'youtubeDownload', url, id, choice: '--exec calc.exe' })
   )
+  assert.equal(f.calls.length, 1)
+  assert.equal(f.calls[0].options.shell, false)
+  assert.equal(f.calls[0].args.at(-1), url)
   await f.engine.dispatch({ action: 'youtubeDownload', url, id, choice: 'audio' })
   await next()
-  assert.equal(f.calls[1].options.shell, false)
-  assert.equal(f.calls[1].args[f.calls[1].args.indexOf('--format') + 1], 'ba')
-  assert.equal(f.calls[1].args.at(-1), url)
-  await f.engine.dispatch({ action: 'youtubeCancel', url, id })
-  assert.equal(f.children[1].exitCode, 1)
+  assert.equal(f.downloadRequests.length, 1)
+  assert.equal(f.downloadRequests[0].url, 'https://r1.googlevideo.com/audio')
 })
 test('cancellation before asynchronous folder preparation never starts a download', async () => {
   const f = fixture(),
@@ -116,24 +156,20 @@ test('cancellation before asynchronous folder preparation never starts a downloa
   const response = await f.engine.dispatch({ action: 'youtubeStatus', url, id })
   assert.equal(response.job.state, 'cancelled')
 })
-test('completed path, progress, duplicate inspection and shutdown cancellation', async () => {
+test('completes an audio download, deduplicates inspection, and cancels a later inspection on shutdown', async () => {
   const f = fixture(),
     id = await ready(f)
   assert.equal((await f.engine.dispatch({ action: 'youtubeInspect', url })).job.id, id)
-  await f.engine.dispatch({ action: 'youtubeDownload', url, id, choice: 'h720' })
+  await f.engine.dispatch({ action: 'youtubeDownload', url, id, choice: 'audio' })
   await next()
-  const child = f.children[1]
-  child.stdout.emit('data', Buffer.from('FLUXFETCH_PROGRESS:50% 1MiB/s ETA 00:01\n'))
-  assert.match((await f.engine.dispatch({ action: 'youtubeStatus', url, id })).job.message, /50%/)
-  child.stdout.emit('data', Buffer.from('FLUXFETCH_FILE:C:\\Downloads\\video.webm\n'))
-  child.exitCode = 0
-  child.emit('close', 0)
-  await next()
-  assert.equal(
-    (await f.engine.dispatch({ action: 'youtubeStatus', url, id })).job.state,
-    'complete'
-  )
-  await f.engine.dispatch({ action: 'youtubeInspect', url })
+  const status = await f.engine.dispatch({ action: 'youtubeStatus', url, id })
+  assert.equal(status.job.state, 'complete')
+  assert.equal(f.downloadRequests.length, 1)
+  const nextUrl = 'https://www.youtube.com/watch?v=abcdefghijk'
+  const nextJob = await f.engine.dispatch({ action: 'youtubeInspect', url: nextUrl })
+  assert.notEqual(nextJob.job.id, id)
+  for (let i = 0; i < 10 && f.children.length < 2; i++) await next()
+  assert.equal(f.children.length, 2)
   f.app.emit('before-quit')
-  assert.equal(f.children[2].exitCode, 1)
+  assert.equal(f.children[1].exitCode, 1)
 })

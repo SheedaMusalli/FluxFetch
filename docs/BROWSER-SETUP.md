@@ -7,7 +7,7 @@ Install [FluxFetch for Windows](https://github.com/SheedaMusalli/FluxFetch/relea
 | Browser                 | Release asset           | Extension page                                |
 | ----------------------- | ----------------------- | --------------------------------------------- |
 | Chrome                  | `FluxFetch-Chrome.zip`  | `chrome://extensions`                         |
-| Edge                    | `FluxFetch-Chrome.zip`  | `edge://extensions`                           |
+| Edge                    | FluxFetch-Edge.zip      | edge://extensions                          |
 | Brave                   | `FluxFetch-Chrome.zip`  | `brave://extensions`                          |
 | Vivaldi                 | `FluxFetch-Chrome.zip`  | `vivaldi://extensions`                        |
 | Opera / Opera GX        | `FluxFetch-Chrome.zip`  | `opera://extensions`                          |
@@ -18,7 +18,7 @@ Other Chromium browsers need unpacked Manifest V3 and Native Messaging support. 
 
 ## Chromium browsers
 
-1. Download **FluxFetch-Chrome.zip** from the same release as the desktop app.
+1. Download FluxFetch-Edge.zip for Edge, or FluxFetch-Chrome.zip for Chrome and other Chromium browsers.
 2. Right-click → **Extract All** into a permanent folder. Do not load from inside the ZIP or an extraction preview.
 3. Open the appropriate page above, enable **Developer mode**, and click **Load unpacked**.
 4. Select the folder directly containing `manifest.json`.
@@ -39,6 +39,8 @@ Official references: [Edge sideloading](https://learn.microsoft.com/en-us/micros
 4. Open the popup and confirm **Connected**. Refresh existing webpages.
 5. Repeat loading after Firefox restarts.
 
+The release includes FluxFetch-Firefox-source-2.0.zip as a buildable source bundle for Mozilla's source-code request. Submit FluxFetch-Firefox.xpi or the Firefox ZIP for add-on review and signing; neither package is pre-signed.
+
 The bundled copy lives at `<installation folder>\resources\extension-firefox`. Keep its ID `fluxfetch@fluxfetch.app` unchanged so it matches the Mozilla native-host allowlist.
 
 This ZIP is **unsigned**. Standard Firefox does not persistently install it through **Install Add-on From File**; renaming it to `.xpi` does not change that. Persistent distribution requires Mozilla signing. **No signed Firefox XPI is included in v2.0.0.** See [Mozilla's temporary-installation instructions](https://extensionworkshop.com/documentation/develop/temporary-installation-in-firefox/).
@@ -49,7 +51,7 @@ This ZIP is **unsigned**. Standard Firefox does not persistently install it thro
 - Enable **Automatic capture** or explicitly choose **Download with FluxFetch** on a direct link. The app asks before accepting captured downloads.
 - Disable capture or exclude a site to keep its downloads in the browser.
 - Automatic capture skips images and known downloads smaller than 128 KiB. Explicit actions and torrents are separate. Private sessions, unsupported requests and browser safety blocks may stay in the browser.
-- Supported public YouTube pages have a dedicated format-selection workflow. Tools download on first use; DRM, live broadcasts and some restricted videos remain unsupported.
+- Supported public YouTube pages have a dedicated format-selection workflow. The desktop downloader prefers tracks yt-dlp marks as original or that match the video's language. Tools download on first use; DRM, live broadcasts and some restricted videos remain unsupported.
 - To update, install the desktop release in **Update** mode, replace extracted extension files with the matching package, then **Reload** its browser card and refresh webpages. Reload Firefox's temporary add-on as needed. Preserve extension identities.
 
 ## Troubleshooting

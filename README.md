@@ -28,7 +28,7 @@ FluxFetch is a Windows download manager with concurrent, resumable HTTP/HTTPS tr
 | Torrent details        | Inspect files, per-file progress, trackers and errors, connected peers, ETA, uploads, ratio, DHT nodes, listening port and full content location. Open the download folder directly. |
 | OmniLink               | Route eligible Steam and game-launcher connections through selected adapters and inspect launcher activity in the tray companion.                                                   |
 | Net Merge              | Run the user-mode multi-network engine, inspect adapters and quotas, set per-adapter limits, and start or stop it from FluxFetch. Separate Internet connections are needed for added capacity. |
-| Browser integration    | Capture supported downloads, send links through the context menu, find direct media, and access supported public-YouTube downloads. Chromium and Firefox packages are included.      |
+| Browser integration    | Capture supported downloads, send links through the context menu, find direct media, and download supported public YouTube videos. Chrome, Edge and Firefox packages are included. |
 | Cleaner capture        | Automatic capture leaves ordinary images and known downloads smaller than 128 KiB in the browser. Explicit actions and torrent links are handled separately.                         |
 | Download library       | View active direct downloads and torrents alongside completed history, with per-transfer controls, filters, search, resizable columns and persistent column preferences.             |
 | File removal           | Remove history while keeping files, or explicitly confirm disk deletion. Torrents have separate keep-files and delete-files actions.                                                 |
@@ -74,9 +74,9 @@ The installer includes the local browser helper and lets you choose whether to i
 
 ### Chromium: Chrome, Edge, Brave, Vivaldi, Opera and Opera GX
 
-Use **`FluxFetch-Chrome.zip`** for these browsers; it is the Chromium package despite its filename.
+Use FluxFetch-Chrome.zip for Chrome and other Chromium browsers. Microsoft Edge has a separately named FluxFetch-Edge.zip package with the same Chromium extension code.
 
-1. Download it from the same release and **extract** it into a permanent folder, such as `Documents\FluxFetch Extension`.
+1. Download the matching ZIP from the same release: FluxFetch-Edge.zip for Edge, or FluxFetch-Chrome.zip for Chrome and other Chromium browsers. Extract it to a permanent folder, such as Documents\FluxFetch Extension.
 2. Open your browser's extension page:
 
    | Browser                 | Page                                          |
@@ -104,7 +104,7 @@ The optional `FluxFetch-Chrome.crx` is a CRX3 package, **not a Chrome Web Store 
 4. Open the extension popup, confirm **Connected**, and refresh webpages.
 5. Repeat temporary loading after Firefox restarts.
 
-**This release's Firefox package is unsigned and temporary.** Renaming the ZIP to `.xpi` does not make it permanently installable in standard Firefox. Persistent distribution requires Mozilla signing. See [Mozilla's instructions](https://extensionworkshop.com/documentation/develop/temporary-installation-in-firefox/) and the [FluxFetch browser guide](docs/BROWSER-SETUP.md).
+**This release's Firefox package is unsigned and temporary.** Renaming the ZIP to .xpi does not make it permanently installable in standard Firefox. Persistent distribution requires Mozilla signing. The release also includes FluxFetch-Firefox-source-2.0.zip for the source-code request in Mozilla's review workflow. See [Mozilla's instructions](https://extensionworkshop.com/documentation/develop/temporary-installation/) and the [FluxFetch browser guide](docs/BROWSER-SETUP.md).
 
 ## Using torrents
 
@@ -120,7 +120,7 @@ New and restored torrents use normal swarm piece selection, with DHT/PEX and sup
 
 ## YouTube and direct media
 
-The extension adds controls for supported public YouTube videos and direct audio/video sources. Choose a format and confirm the job. Verified tools download on first use; FFmpeg is fetched when muxing is needed.
+The extension adds controls for supported public YouTube videos and direct audio/video sources. Choose a format and confirm the job. The desktop downloader prefers audio tracks identified as original, then tracks matching the video's language, before falling back to the best available audio. Verified tools download on first use; FFmpeg is fetched when muxing is needed.
 
 DRM, live broadcasts, interactive challenges and some sign-in/region restrictions remain unsupported. General HLS/DASH, `blob:` URLs and POST-generated files are not ordinary direct-file capture. YouTube jobs do not persist across an app restart. See [Windows integration details](WINDOWS-SETUP.md).
 

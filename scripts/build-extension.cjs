@@ -82,7 +82,7 @@ firefoxManifest.browser_specific_settings = {
 fs.writeFileSync(firefoxManifestPath, `${JSON.stringify(firefoxManifest, null, 2)}\n`)
 fs.writeFileSync(
   path.join(firefoxDir, 'README.md'),
-  '# FluxFetch for Firefox\n\nInstall the FluxFetch Windows app first. Open `about:debugging` → **This Firefox** → **Load Temporary Add-on…**, then select this folder’s `manifest.json`. Confirm **Connected** in the popup and refresh webpages. This release is unsigned: reload the temporary add-on after Firefox restarts. Persistent installation requires Mozilla signing; no signed XPI is included. Full guide: https://github.com/SheedaMusalli/FluxFetch/blob/main/docs/BROWSER-SETUP.md\n'
+  '# FluxFetch for Firefox\n\nInstall FluxFetch for Firefox from [Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fluxfetch-integration-module/). The add-on needs the FluxFetch Windows app to handle downloads.\n\nFor local development, open `about:debugging` → **This Firefox** → **Load Temporary Add-on…** and choose this folder’s `manifest.json`. Temporary add-ons must be loaded again after Firefox restarts. See the [browser setup guide](https://github.com/SheedaMusalli/FluxFetch/blob/main/docs/BROWSER-SETUP.md).\n'
 )
 
 // Edge rejects Chromium packages that carry Chrome's extension identity key.

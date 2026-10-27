@@ -1,18 +1,18 @@
 # Connect your browser to FluxFetch
 
-Install [FluxFetch for Windows](https://github.com/SheedaMusalli/FluxFetch/releases/latest) first. Setup registers the local Native Messaging helper; loading a ZIP alone cannot connect to the app. This release provides unpacked Chromium and temporary Firefox packages, not browser-store listings.
+Install [FluxFetch for Windows](https://github.com/SheedaMusalli/FluxFetch/releases/latest) first. Setup registers the local Native Messaging helper. Chrome and Edge use unpacked extension packages; install Firefox from [Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fluxfetch-integration-module/).
 
 ## Choose a package
 
-| Browser                 | Release asset           | Extension page                                |
-| ----------------------- | ----------------------- | --------------------------------------------- |
-| Chrome                  | `FluxFetch-Chrome.zip`  | `chrome://extensions`                         |
-| Edge                    | FluxFetch-Edge.zip      | edge://extensions                             |
-| Brave                   | `FluxFetch-Chrome.zip`  | `brave://extensions`                          |
-| Vivaldi                 | `FluxFetch-Chrome.zip`  | `vivaldi://extensions`                        |
-| Opera / Opera GX        | `FluxFetch-Chrome.zip`  | `opera://extensions`                          |
-| Other Chromium browsers | `FluxFetch-Chrome.zip`  | Browser menu → Extensions → Manage extensions |
-| Firefox                 | `FluxFetch-Firefox.zip` | `about:debugging#/runtime/this-firefox`       |
+| Browser                 | Release asset                                                                                   | Extension page                                |
+| ----------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| Chrome                  | `FluxFetch-Chrome.zip`                                                                          | `chrome://extensions`                         |
+| Edge                    | FluxFetch-Edge.zip                                                                              | edge://extensions                             |
+| Brave                   | `FluxFetch-Chrome.zip`                                                                          | `brave://extensions`                          |
+| Vivaldi                 | `FluxFetch-Chrome.zip`                                                                          | `vivaldi://extensions`                        |
+| Opera / Opera GX        | `FluxFetch-Chrome.zip`                                                                          | `opera://extensions`                          |
+| Other Chromium browsers | `FluxFetch-Chrome.zip`                                                                          | Browser menu → Extensions → Manage extensions |
+| Firefox                 | [Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fluxfetch-integration-module/) | Add-ons listing                               |
 
 Other Chromium browsers need unpacked Manifest V3 and Native Messaging support. Chrome/Edge and Mozilla host registrations are installed by setup; Chromium forks must support the relevant Windows host lookup. Compatibility with every fork has not been individually tested.
 
@@ -33,17 +33,9 @@ Official references: [Edge sideloading](https://learn.microsoft.com/en-us/micros
 
 ## Firefox
 
-1. Download and extract **FluxFetch-Firefox.zip**, rather than the Chromium ZIP.
-2. Open `about:debugging#/runtime/this-firefox`.
-3. Click **Load Temporary Add-on…**, then select `manifest.json` from the extracted Firefox folder.
-4. Open the popup and confirm **Connected**. Refresh existing webpages.
-5. Repeat loading after Firefox restarts.
+Install [FluxFetch from Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fluxfetch-integration-module/). Open the extension popup and check for **Connected**, then refresh any open webpages. The FluxFetch Windows app must be installed so the extension can reach its local helper. Firefox updates the add-on through Mozilla.
 
-The release includes FluxFetch-Firefox-source-2.1.zip as a buildable source bundle for Mozilla's source-code request. Submit FluxFetch-Firefox.xpi or the Firefox ZIP for add-on review and signing; neither package is pre-signed. The Edge ZIP omits Chrome's manifest `key` field, which Edge rejects during Partner Center package validation.
-
-The bundled copy lives at `<installation folder>\resources\extension-firefox`. Keep its ID `fluxfetch@fluxfetch.app` unchanged so it matches the Mozilla native-host allowlist.
-
-This ZIP is **unsigned**. Standard Firefox does not persistently install it through **Install Add-on From File**; renaming it to `.xpi` does not change that. Persistent distribution requires Mozilla signing. **No signed Firefox XPI is included in v2.0.0.** See [Mozilla's temporary-installation instructions](https://extensionworkshop.com/documentation/develop/temporary-installation-in-firefox/).
+The source bundle in the GitHub release is for reviewers and developers; users should install from Mozilla Add-ons. The installed add-on ID must stay `fluxfetch@fluxfetch.app` so it matches the native-host allowlist. The Edge ZIP omits Chrome's manifest `key` field, which Partner Center rejects.
 
 ## Using and updating the extension
 
@@ -52,16 +44,16 @@ This ZIP is **unsigned**. Standard Firefox does not persistently install it thro
 - Disable capture or exclude a site to keep its downloads in the browser.
 - Automatic capture skips images and known downloads smaller than 128 KiB. Explicit actions and torrents are separate. Private sessions, unsupported requests and browser safety blocks may stay in the browser.
 - Supported public YouTube pages have a dedicated format-selection workflow. The desktop downloader prefers tracks yt-dlp marks as original or that match the video's language. Tools download on first use; DRM, live broadcasts and some restricted videos remain unsupported.
-- To update, install the desktop release in **Update** mode, replace extracted extension files with the matching package, then **Reload** its browser card and refresh webpages. Reload Firefox's temporary add-on as needed. Preserve extension identities.
+- To update, run the desktop installer in **Update** mode. Replace the unpacked Chrome or Edge files, click **Reload** on the extension card, and refresh open webpages. Firefox updates through Mozilla Add-ons. Keep the extension IDs unchanged so each browser stays connected to the local helper.
 
 ## Troubleshooting
 
 | Symptom                               | Resolution                                                                                                                                                                                                          |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Disconnected / native host not found  | Run desktop setup in Update mode for the Windows account using the browser. Fully reopen the browser and check the package/identity.                                                                                |
-| Wrong folder                          | Chromium's loader takes the folder directly containing `manifest.json`; Firefox's temporary loader takes the file.                                                                                                  |
+| Wrong folder                          | Choose the folder that directly contains `manifest.json` when loading an unpacked Chromium extension.                                                                                                               |
 | Chromium fork loads but won't connect | Check compatible Windows Native Messaging host lookup. Setup registers Chrome/Edge locations; arbitrary forks may need browser-specific integration. Report browser/version instead of disabling security settings. |
-| Firefox extension disappeared         | Temporary add-ons are removed at restart. Load it again; this release has no signed persistent XPI.                                                                                                                 |
+| Firefox extension is missing          | Install or re-enable it from [Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fluxfetch-integration-module/). Check that Firefox has not disabled it.                                               |
 | Old tab has no controls               | Refresh after loading/reloading the extension.                                                                                                                                                                      |
 | Download stays in browser             | Check capture, exclusions, small/image filtering and ordinary HTTP/HTTPS GET support. Try an explicit direct link.                                                                                                  |
 | 403, login challenge or expired URL   | Obtain a fresh link or use the browser; FluxFetch does not bypass site challenges.                                                                                                                                  |

@@ -4,7 +4,7 @@
 
 # FluxFetch
 
-**Your downloads. Your connections. One place to manage them.**
+**A Windows download manager for files, torrents, and browser handoff.**
 
 Concurrent downloads · Built-in torrents · Net Merge · OmniLink · Browser integration
 
@@ -16,28 +16,28 @@ Concurrent downloads · Built-in torrents · Net Merge · OmniLink · Browser in
 
 </div>
 
-FluxFetch is a Windows download manager with concurrent, resumable HTTP/HTTPS transfers, a built-in libtorrent engine, optional OmniLink acceleration for eligible game-launcher traffic, and Net Merge multi-adapter routing. Manage every active download and torrent in one library, extract encrypted archives, and send links from your browser.
+FluxFetch is a Windows app for managing downloads and torrents. It can run several direct downloads at once, split supported files across connections, and resume transfers after a restart. It also includes Net Merge, OmniLink, archive tools, browser handoff, and a format picker for supported public YouTube videos.
 
 ## Features
 
-| Feature                | What you can do                                                                                                                                                                                |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Parallel downloads     | Run multiple direct downloads at once, split supported files across connections, select adapters, resume each transfer after restart, and retry failed parts.                                  |
-| Built-in torrents      | Download and seed magnets and `.torrent` files directly, without another torrent client or an installed Python runtime.                                                                        |
-| Live progress          | See every active direct download and torrent as its own library row with progress, speed, ETA and controls. The bottom live-transfer footer is reserved for torrents.                          |
-| Torrent details        | Inspect files, per-file progress, trackers and errors, connected peers, ETA, uploads, ratio, DHT nodes, listening port and full content location. Open the download folder directly.           |
-| OmniLink               | Route eligible Steam and game-launcher connections through selected adapters and inspect launcher activity in the tray companion.                                                              |
-| Net Merge              | Run the user-mode multi-network engine, inspect adapters and quotas, set per-adapter limits, and start or stop it from FluxFetch. Separate Internet connections are needed for added capacity. |
-| Browser integration    | Capture supported downloads, send links through the context menu, find direct media, and download supported public YouTube videos. Chrome, Edge and Firefox packages are included.             |
-| Cleaner capture        | Automatic capture leaves ordinary images and known downloads smaller than 128 KiB in the browser. Explicit actions and torrent links are handled separately.                                   |
-| Download library       | View active direct downloads and torrents alongside completed history, with per-transfer controls, filters, search, resizable columns and persistent column preferences.                       |
-| File removal           | Remove history while keeping files, or explicitly confirm disk deletion. Torrents have separate keep-files and delete-files actions.                                                           |
-| Queues and scheduling  | Add batches of URLs, manage waiting downloads and schedule queue starts.                                                                                                                       |
-| Torrent limits         | Set download and upload bandwidth caps for torrents from their details panel.                                                                                                                  |
-| Network tools          | Test Internet and combined-network speed, apply rate limits, configure HTTP/HTTPS/SOCKS proxies and save site authentication.                                                                  |
-| Archive tools          | Browse, search, test and extract archives; 7-Zip handles encrypted ZIP/AES and RAR formats. Add or remove archive entries in the manager.                                                      |
-| Optional remote access | Manage supported actions through an authenticated HTTPS dashboard, disabled by default.                                                                                                        |
-| Windows integration    | Clipboard download prompts, magnet and `.torrent` handling, system tray operation, and update checks against FluxFetch's GitHub releases.                                                      |
+| Feature               | What you can do                                                                                                                                                                                                                                                                                       |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Parallel downloads    | Run several direct downloads at once, choose adapters, resume after restart, and retry failed parts.                                                                                                                                                                                                  |
+| Built-in torrents     | Download and seed magnet links and `.torrent` files in FluxFetch. No separate torrent client or Python install is needed.                                                                                                                                                                             |
+| Live progress         | See each active download and torrent in the library, with its own progress, speed, ETA, and controls. The bottom transfer footer is for torrents.                                                                                                                                                     |
+| Torrent details       | Inspect files, per-file progress, trackers and errors, connected peers, ETA, uploads, ratio, DHT nodes, listening port and full content location. Open the download folder directly.                                                                                                                  |
+| OmniLink              | Route eligible Steam and other launcher connections through selected adapters. View launcher activity in the tray app.                                                                                                                                                                                |
+| Net Merge             | Start and stop the user-mode engine, inspect adapters and quotas, and set per-adapter limits. Separate Internet connections are needed to add capacity.                                                                                                                                               |
+| Browser integration   | Capture supported downloads, send links from the context menu, find direct media, and choose formats for supported public YouTube videos. Chrome and Edge packages are in the release; Firefox is on [Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fluxfetch-integration-module/). |
+| Capture filters       | Automatic capture leaves ordinary images and known downloads under 128 KiB in the browser. Explicit actions and torrent links are handled separately.                                                                                                                                                 |
+| Download library      | View active transfers and completed history with per-download controls, filters, search, and resizable columns. Column choices are saved.                                                                                                                                                             |
+| File removal          | Remove history while keeping files, or explicitly confirm disk deletion. Torrents have separate keep-files and delete-files actions.                                                                                                                                                                  |
+| Queues and scheduling | Add batches of URLs, manage waiting downloads and schedule queue starts.                                                                                                                                                                                                                              |
+| Torrent limits        | Set download and upload bandwidth caps for torrents from their details panel.                                                                                                                                                                                                                         |
+| Network tools         | Test Internet and combined-network speed, apply rate limits, configure HTTP/HTTPS/SOCKS proxies and save site authentication.                                                                                                                                                                         |
+| Archive tools         | Browse, search, test and extract archives; 7-Zip handles encrypted ZIP/AES and RAR formats. Add or remove archive entries in the manager.                                                                                                                                                             |
+| Remote access         | Manage supported actions through an authenticated HTTPS dashboard. It is off by default.                                                                                                                                                                                                              |
+| Windows integration   | Clipboard download prompts, magnet and `.torrent` handling, system tray operation, and update checks against FluxFetch's GitHub releases.                                                                                                                                                             |
 
 ## OmniLink for Steam
 
@@ -51,15 +51,15 @@ Click **Run OmniLink** beside **Speed test**, approve the Windows administrator 
 | Wi-Fi                 | Router B's separate Internet line                                                                         |
 | Android USB tethering | Router C's separate Internet line through the phone's Wi-Fi, if the phone supports sharing Wi-Fi over USB |
 
-This makes more aggregate capacity available to eligible Steam transfers. Three routers sharing one upstream Internet line still share that line's capacity.
+Eligible Steam transfers can use capacity from all three lines. If the routers share one upstream connection, they still share its capacity.
 
-The compact, opaque overlay shows Steam running/not running and download activity. Speed is based on Steam traffic and stays at zero when no game download is detected. Expand the arrow for connection counts, adapter throughput, IP addresses, gateways and link rates. Newly connected routable adapters and address changes are detected while the helper runs.
+The tray overlay shows whether Steam is running and whether it is transferring data. It reports zero speed when it sees no Steam download. Expand it to view connection counts, adapter traffic, IP addresses, gateways, and link rates. It detects newly connected adapters and address changes while running.
 
-Results depend on Steam's CDN, connection behavior, routing, bandwidth and compatible drivers. OmniLink can improve throughput but **does not guarantee a speed increase**. Its measurements may differ from Steam's display because sampling intervals and measured traffic differ.
+Speed depends on Steam's servers, connection behavior, routing, available bandwidth, and compatible drivers. OmniLink may improve throughput, but it cannot guarantee a faster download. Its reading may differ from Steam's because the two apps measure traffic over different intervals.
 
 ## Net Merge
 
-Open **Net Merge** from the Downloads Library to inspect adapter status and budgets, set per-adapter speed limits, and start or stop the engine. Net Merge routes eligible traffic through available interfaces; it does not turn separate adapters into one guaranteed faster connection. For added Internet capacity, use adapters connected to independent Internet lines. The same-router adapters share that line. Net Merge is user-mode; FluxFetch does not ship the experimental custom Windows kernel driver.
+Open **Net Merge** in the Downloads Library to check adapters and budgets, set speed limits, or start and stop the engine. It routes eligible traffic over available interfaces; it cannot guarantee a speed increase. To add Internet capacity, connect adapters to separate Internet lines. Adapters on the same router share one line. FluxFetch uses the user-mode engine and does not ship the experimental custom Windows driver.
 
 ## Install FluxFetch
 
@@ -70,7 +70,7 @@ Open **Net Merge** from the Downloads Library to inspect adapter status and budg
 5. Open **Settings** in FluxFetch and select your default download folder.
 6. Install the browser extension below if you want webpage capture. **Add URL**, clipboard prompts and **Torrents** also work without an extension.
 
-The installer includes the local browser helper and lets you choose whether to install OmniLink and Net Merge. Each browser still needs its extension loaded separately. FluxFetch is not distributed through browser stores, and the Windows installer is not Authenticode-signed. Release checksums are available in `SHA256SUMS.txt`.
+The installer includes the local browser helper and lets you choose whether to install OmniLink and Net Merge. Install the browser extension separately in each browser. FluxFetch is not listed in the Chrome or Edge stores, and the Windows installer is not Authenticode-signed. Release checksums are in `SHA256SUMS.txt`.
 
 ### Chromium: Chrome, Edge, Brave, Vivaldi, Opera and Opera GX
 
@@ -98,13 +98,7 @@ The optional `FluxFetch-Chrome.crx` is a CRX3 package, **not a Chrome Web Store 
 
 ### Firefox
 
-1. Download and extract **`FluxFetch-Firefox.zip`** from the same release. Use this package, not the Chromium ZIP.
-2. Open **`about:debugging#/runtime/this-firefox`**.
-3. Click **Load Temporary Add-on…** and select **`manifest.json`** inside the extracted Firefox folder.
-4. Open the extension popup, confirm **Connected**, and refresh webpages.
-5. Repeat temporary loading after Firefox restarts.
-
-**This release's Firefox 2.1 package is unsigned and temporary.** Renaming the ZIP to .xpi does not make it permanently installable in standard Firefox. Persistent distribution requires Mozilla signing. The release also includes FluxFetch-Firefox-source-2.1.zip for the source-code request in Mozilla's review workflow. See [Mozilla's instructions](https://extensionworkshop.com/documentation/develop/temporary-installation/) and the [FluxFetch browser guide](docs/BROWSER-SETUP.md).
+Install [FluxFetch from Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fluxfetch-integration-module/), then open its popup and check that it says **Connected**. The FluxFetch Windows app must be installed. Firefox handles extension updates. The release's Firefox source bundle is for reviewers and developers, not for installation.
 
 ## Using torrents
 

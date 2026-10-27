@@ -33,7 +33,7 @@ Browser-originated direct downloads can start while other direct transfers are a
 - Packaged evidence: `artifacts/library-packaged-result.json`, `artifacts/library-packaged-live.png`.
 - Repeat packaged download check: `node scripts/verify-packaged-library.cjs` after staging the packaged app.
 - Final broader Electron smoke run: **99 passed, 9 skipped, 0 failed** in 5.1 minutes against the final source build; `artifacts/concurrent-library-smoke/.last-run.json`. Includes per-download windows, cancellation, library history, sequential queue UI, crash recovery, settings, network handling and all six Net Merge journeys.
-- Follow-up requested rerun: **all nine previously skipped cases subsequently passed** across targeted runs. Eight network cases used independently source-bound `127.0.0.1` and `127.0.0.2` TCP sockets; the ninth used a real Windows ACL denying file/directory creation in a fresh temporary destination. See [the skipped-case rerun report](skipped-tests-2026-10-26.md) for conditions and the permission-harness corrections. This is coverage across separate runs, not a claim that one run reported 108 passes.
+- The nine cases skipped in the smoke run later passed in focused runs. Eight used TCP sockets bound to `127.0.0.1` and `127.0.0.2`; the ninth used a Windows ACL that blocked file and directory creation in a temporary destination. Details and the permission-test fixes are in [the rerun report](skipped-tests-2026-10-26.md). These results came from separate runs; the smoke run itself did not report 108 passes.
 
 ## Defects found and fixed during the Net Merge audit
 
@@ -41,7 +41,7 @@ The initial implementation was incomplete. Real optimized TCP copies bypassed qu
 
 Other fixes include charging only bytes actually written, shared UDP/TCP quota accounting, preserving the Stop control for a live engine with a stale heartbeat, waiting for actual TUN readiness instead of declaring success early, malformed status validation, and surfacing quota storage errors.
 
-The actual packaged app also exposed incorrect packaged icon paths that prevented startup. Those were corrected and verified by launching the packaged EXE. The Windows crash-test harness was corrected to kill the test Electron process tree, rather than only its launcher shell.
+The packaged app initially failed to start because its icon paths were wrong. After correcting them, the packaged EXE launched successfully. The Windows crash-test harness now terminates the Electron process tree instead of only its launcher shell.
 
 ## Net Merge validation evidence
 

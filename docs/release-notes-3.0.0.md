@@ -1,25 +1,23 @@
 # FluxFetch 3.0.0
 
-FluxFetch 3.0.0 includes the Net Merge adapter, simultaneous download-library progress, archive tools, and browser integration updates. The refreshed 3.0.0 installer includes a YouTube audio-track selection fix.
+FluxFetch 3.0.0 adds Net Merge, active-transfer rows in the download library, and archive tools. YouTube audio selection now prefers the original track when that information is available.
 
-## Highlights
+## Changes
 
-- Adds Net Merge beside OmniLink, with adapter status, limits, quotas, diagnostics, and engine controls.
-- Shows every active direct download and torrent together in the Downloads Library, with per-transfer progress and controls.
-- Supports concurrent direct downloads, per-download recovery after restart, and browser downloads tracked independently.
-- Adds an archive manager for browsing, testing, extracting, adding, and deleting files.
-- Prefers YouTube audio tracks marked as original and matches audio to the video's language when that metadata is available, avoiding a dubbed track when a preferred original track is present.
-- Provides the v2.0 Chrome, v1.0.0 Edge, and v2.1 Firefox extension packages, with buildable Firefox and Edge source bundles.
-- Adds torrent bandwidth limits and updates speed-test and download-queue interfaces.
-- Lets users choose whether to install OmniLink and Net Merge during setup.
+- Net Merge sits beside OmniLink. Its panel shows adapter status and quotas, and lets you set limits and start or stop the engine.
+- The library shows every active direct download and torrent with its own progress and controls. Direct downloads can run together and restore independently after a restart.
+- Browser downloads are tracked separately. The new archive manager can browse, test, extract, add, and remove archive entries.
+- YouTube prefers audio marked original, then a track matching the video's language when that information is available.
+- Chrome v2.0 and Edge v1.0.0 packages are in the release. Install Firefox from [Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fluxfetch-integration-module/).
+- Torrent bandwidth limits and updates to the speed test and download queue are included. Setup lets you choose whether to install OmniLink and Net Merge.
 
 ## Downloads
 
-- fluxfetch-3.0.0-setup.exe — refreshed Windows installer
+- fluxfetch-3.0.0-setup.exe — Windows installer
 - FluxFetch-Chrome.crx and FluxFetch-Chrome.zip — Chrome extension
 - FluxFetch-Edge.zip — Microsoft Edge extension v1.0.0
-- FluxFetch-Firefox.xpi and FluxFetch-Firefox.zip — Firefox extension packages
-- FluxFetch-Firefox-source-2.1.zip and FluxFetch-Edge-source-1.0.0.zip — buildable browser-source bundles
+- [Firefox add-on](https://addons.mozilla.org/en-US/firefox/addon/fluxfetch-integration-module/)
+- FluxFetch-Firefox-source-2.1.zip and FluxFetch-Edge-source-1.0.0.zip — source bundles for review and development
 - SHA256SUMS.txt — SHA-256 checksums
 
 ## SHA-256
@@ -28,7 +26,6 @@ FluxFetch 3.0.0 includes the Net Merge adapter, simultaneous download-library pr
 - Chrome CRX: BA7B89F7DC54AEF5C8D7EB106DB07B881E996A33AC7A6DABD4D7160DE18ED94A
 - Chrome ZIP: 2BD09694E050287B9FBA4F6BE0C1A0D1CE3269DDFC005FF19BBB5043BE843975
 - Edge ZIP: 95417F53A71C9E694B19B7BC95D4E2CA4E1CF02B34828738F406C1966DFFB5AD
-- Firefox XPI/ZIP: A3D3A2B5B49FA12A0E79EF2C1CCA8E9682AE3C9E0AA98238F6D7CC840EC09571
 - Firefox source: 85D0F584780FB73AD2F977D80F258334573C7FDD19F53845044242FFF5F394E4
 - Edge source: 2E563769EDB4DF3C004B1FD5B07646528D9D8B4802DAEA8DD403997A6C290306
 

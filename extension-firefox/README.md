@@ -1,3 +1,5 @@
 # FluxFetch for Firefox
 
-Install the FluxFetch Windows app first. Open `about:debugging` → **This Firefox** → **Load Temporary Add-on…**, then select this folder’s `manifest.json`. Confirm **Connected** in the popup and refresh webpages. This release is unsigned: reload the temporary add-on after Firefox restarts. Persistent installation requires Mozilla signing; no signed XPI is included. Full guide: https://github.com/SheedaMusalli/FluxFetch/blob/main/docs/BROWSER-SETUP.md
+Install FluxFetch for Firefox from [Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/fluxfetch-integration-module/). The add-on needs the FluxFetch Windows app to handle downloads.
+
+For local development, open `about:debugging` → **This Firefox** → **Load Temporary Add-on…** and choose this folder's `manifest.json`. Temporary add-ons must be loaded again after Firefox restarts. See the [browser setup guide](https://github.com/SheedaMusalli/FluxFetch/blob/main/docs/BROWSER-SETUP.md).

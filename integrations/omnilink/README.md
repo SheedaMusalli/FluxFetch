@@ -1,144 +1,38 @@
-# OmniLink: Connection-Level Multi-Adapter Bonding for High-Speed Downloads
+# OmniLink
 
-**OmniLink** is a high-performance Windows system tray engine written in native Rust that aggregates multiple heterogeneous network connections (Ethernet, Wi-Fi, 5G USB tethering, mobile hotspots) into a single, high-bandwidth pipe for eligible launcher downloads and high-throughput HTTP streams.
+OmniLink is FluxFetch's Windows tray helper for routing selected game-launcher traffic over more than one network adapter. It is written in Rust and uses WinDivert to redirect eligible connections to a local dispatcher.
 
----
+## What it routes
 
-## ⚡ How It Works
+OmniLink redirects new IPv4 TCP connections on ports 80 and 443 from selected launcher processes. The dispatcher binds its outbound socket to an adapter's local address and interface index. Each TCP connection stays on one adapter; OmniLink does not split a single connection across links.
 
-1. **SteamPipe 1 MiB Chunked Architecture:** Steam breaks game depots into thousands of immutable ~1 MiB content-addressed files requested across 16–32 concurrent TCP sockets.
-2. **Windows Weak Host Model Bypass:** Windows normally forces 100% of outbound connections through whichever single network card has the lowest interface routing metric. OmniLink bypasses this by strictly pinning each outbound TCP connection to both the local adapter IPv4 address and its hardware interface index using the Winsock `IP_UNICAST_IF` option:
-   $$\text{Adapter Isolation} = \text{bind}(\text{Local IPv4}) + \text{setsockopt}(\text{IPPROTO\_IP}, \text{IP\_UNICAST\_IF}, \text{htonl}(\text{IfIndex}))$$
-3. **Transparent Traffic Redirection:** Uses Microsoft-signed WinDivert (WFP kernel callout driver) to detect and redirect outbound TCP port 80/443 sockets originating from configured launcher processes to a local loopback dispatcher (`127.0.0.1:19080`).
-4. **Dynamic Capacity-Weighted Load Balancer:** Continuously monitors bandwidth (via lock-free `AtomicU64` counters updated on every read/write) and round-trip latency ($RTT$) per adapter, dynamically scheduling chunk sockets proportional to available headroom and evicting stalled interfaces within 3.5 seconds.
-5. **Headless Tray Application:** Runs strictly in the Windows "Show Hidden Icons" notification tray with `#![windows_subsystem = "windows"]`, providing real-time per-adapter throughput meters and control toggles.
+Existing connections are not redirected. UDP, QUIC, IPv6, and other ports are not routed. Start OmniLink before the launcher download if you want its new eligible connections to be considered. Some launchers keep connections open, so restarting their download or process may be necessary.
 
----
+The tray menu lets you choose adapters and add launcher executable names. FluxFetch includes presets for Steam, Epic Games, EA, Ubisoft Connect, GOG Galaxy, Riot, Battle.net, and Rockstar. Custom names are stored in `%LOCALAPPDATA%/FluxFetch/OmniLink/launchers.txt`.
 
-## 📁 Project Structure
+Separate Internet connections can provide additional capacity. Adapters sharing the same upstream connection do not add bandwidth. Actual results depend on the launcher, its servers, routing, and available capacity.
 
-```text
-d:\Projects\Steam Download Booster by AntiGravity\
-├── Cargo.toml                      # Project manifest, dependencies, and release LTO profiles
-├── build.rs                        # Links WinDivert.lib, embeds UAC manifest, stages driver DLLs
-├── app.manifest                    # Administrator elevation & PerMonitorV2 high-DPI manifest
-├── app_dev.manifest                # asInvoker manifest for dev/test execution
-├── ARCHITECTURE.md                 # Complete architectural specification & design blueprint
-├── launch_omnilink.bat             # One-click launcher with UAC elevation
-├── run_verification.bat            # One-click hardware verification test
-├── vendor/windivert/x64/           # WinDivert 2.2.2-A x64 binaries (lib, dll, sys)
-├── src/
-│   ├── main.rs                     # Headless Windows entry point & Tokio runtime setup
-│   ├── lib.rs                      # Library re-exports for integration test suites
-│   ├── tray.rs                     # Tray icon, status generation & muda right-click context menu
-│   ├── adapters.rs                 # Win32 GetAdaptersAddresses hardware NIC discovery & filter
-│   ├── socket_binder.rs            # Winsock bind() + IP_UNICAST_IF big-endian interface binding
-│   ├── load_balancer.rs            # 500ms EWMA capacity-weighted scheduler & stall detector
-│   ├── overlay.rs                  # Opaque FluxFetch-themed draggable Steam telemetry overlay
-│   ├── dispatcher.rs               # Async TCP & SOCKS5 loopback proxy with zero-copy stream splicing
-│   └── interceptor.rs              # WinDivert WFP redirector & PID ownership tracking
-└── tests/
-    └── multi_nic_verification.rs   # Automated hardware adapter & public WAN IP verification
-```
+## Telemetry
 
----
+OmniLink reports launcher receive traffic separately from payload relayed by OmniLink and total receive traffic on each adapter. A Windows ETW collector observes selected launchers over TCP and UDP, including traffic that does not pass through the relay. If collection fails or loses events, the display reports the data as unavailable rather than zero.
 
-## 🧪 Hardware Verification Test Results
+The overlay and tray use the same telemetry snapshot. Adapter totals include traffic from all applications; they are not presented as launcher speed. See [FluxFetch integration details](FLUXFETCH-INTEGRATION.md) for the counter definitions, routing limits, and validation steps.
 
-Run the verification test on your system anytime:
+## Build and check
 
-```cmd
-run_verification.bat
-```
-
-or via PowerShell:
+Build the Windows helper and stage its runtime with:
 
 ```powershell
-cargo test --test multi_nic_verification -- --nocapture
+npm run build:omnilink
 ```
 
-### Verified Live Output on This Machine:
+Rust stable with the MSVC toolchain is required. The build stages the helper, WinDivert runtime, and licenses. `npm run build:win` includes this step.
 
-```text
-=== Phase 1: Hardware Adapter & Public WAN IP Verification ===
-[PASS] IfIndex 12 | Ethernet           | Local IP: 192.168.100.197 | Gateway: 192.168.100.1   | WAN IP: 103.169.99.73   | RTT: 22.6438ms
-[PASS] IfIndex 15 | Wi-Fi              | Local IP: 192.168.1.51    | Gateway: 192.168.1.1     | WAN IP: 103.169.99.73   | RTT: 42.0239ms
-
-=== Phase 2: Load Balancer Distribution Simulation (16 Concurrent Steam Chunks) ===
-  Chunk #00 routed via -> Wi-Fi (IfIndex 15)
-  Chunk #01 routed via -> Ethernet (IfIndex 12)
-  Chunk #02 routed via -> Wi-Fi (IfIndex 15)
-  Chunk #03 routed via -> Ethernet (IfIndex 12)
-  Chunk #04 routed via -> Wi-Fi (IfIndex 15)
-  Chunk #05 routed via -> Ethernet (IfIndex 12)
-  Chunk #06 routed via -> Wi-Fi (IfIndex 15)
-  Chunk #07 routed via -> Ethernet (IfIndex 12)
-  Chunk #08 routed via -> Wi-Fi (IfIndex 15)
-  Chunk #09 routed via -> Ethernet (IfIndex 12)
-  Chunk #10 routed via -> Wi-Fi (IfIndex 15)
-  Chunk #11 routed via -> Ethernet (IfIndex 12)
-  Chunk #12 routed via -> Wi-Fi (IfIndex 15)
-  Chunk #13 routed via -> Ethernet (IfIndex 12)
-  Chunk #14 routed via -> Wi-Fi (IfIndex 15)
-  Chunk #15 routed via -> Ethernet (IfIndex 12)
-test verify_per_adapter_isolation_and_public_ips ... ok
-```
-
----
-
-## 🚀 Running OmniLink
-
-1. Double-click `launch_omnilink.bat` or run:
-   ```powershell
-   Start-Process -FilePath ".\target\release\omnilink-tray.exe" -Verb RunAs
-   ```
-2. Accept the Windows UAC Administrator prompt.
-3. OmniLink runs strictly in the background. Click the **Show Hidden Icons (`^`)** chevron in your Windows taskbar tray to see the green OmniLink icon.
-4. **Right-click** the icon to view:
-   - Live combined bandwidth meter (e.g., `OmniLink: Active (240.5 Mbps)`)
-   - Enable / Pause Multi-NIC Bonding toggle
-   - **Show Desktop HUD Overlay** toggle (checked by default)
-   - Individual Network Adapters list with per-adapter real-time Mbps and enable/disable checkboxes
-   - Scheduling Mode selection (`Dynamic Capacity Weighted` or `Strict Round-Robin`)
-   - Rescan Network Adapters (for newly connected USB 5G tethering or Wi-Fi networks)
-   - Start with Windows toggle
-   - Quit OmniLink
-
----
-
-## 🖥️ FluxFetch Desktop Overlay
-
-OmniLink includes a sleek, floating desktop HUD overlay that stays on top of every application, browser, and borderless game:
-
-- **Always On Top (`WS_EX_TOPMOST`):** Never gets hidden behind active game windows or browser tabs.
-- **Opaque FluxFetch Theme:** Solid dark surfaces, purple accents, and smooth rounded corners match the FluxFetch interface.
-- **Zero Desktop Clutter (`WS_EX_TOOLWINDOW`):** Does not appear in your Windows Taskbar or Alt+Tab switcher.
-- **Fully Draggable:** Click and drag anywhere on the overlay to position it on any monitor.
-- **Launcher Metrics:** Independent ETW observation covers selected launcher IPv4/IPv6 TCP and UDP receive traffic, including pre-existing direct connections. Routed payload and whole-adapter receive rates are displayed separately from the same telemetry snapshot. Collection failures are marked unavailable.
-- **Expandable Details:** Use the arrow control to expand or collapse per-adapter routed receive speeds and bonding status.
-- **Easy Hide / Show:**
-  - **From System Tray:** Right-click the green OmniLink tray icon $\rightarrow$ uncheck/check **`Show Desktop HUD Overlay`**.
-  - **From Overlay:** Right-click the overlay directly $\rightarrow$ click **`Hide Overlay`** or **`Reset Position to Top-Right`**.
-
----
-
-## 🔍 How to Test Multi-NIC Dispatching
-
-### 1. Direct Proxy Verification (curl SOCKS5)
-
-With OmniLink running, test the dispatcher directly using curl in PowerShell:
+For the controlled observer test, build and run the diagnostic as Administrator:
 
 ```powershell
-curl.exe --socks5 127.0.0.1:19080 http://api.ipify.org
+cargo build --manifest-path integrations/omnilink/Cargo.toml --example verify_observer
+target/debug/examples/verify_observer.exe C:/absolute/path/report.json
 ```
 
-When switched to **Strict Round-Robin**, alternating curl requests will rotate across each enabled network adapter.
-
-### 2. Live Steam Downloads
-
-1. Open Windows **Task Manager** (`Ctrl+Shift+Esc`) and navigate to the **Performance** tab.
-2. Select **Ethernet** and open **Wi-Fi** side-by-side (or open `resmon.exe` -> Network).
-3. Start or resume any game download in Steam.
-4. Watch both network adapters spike and sustain high throughput simultaneously instead of one sitting idle at 0 Kbps!
-
-For launcher presets, custom client setup and protocol limits, see [FluxFetch integration](FLUXFETCH-INTEGRATION.md).
+The diagnostic checks known local IPv4/IPv6 TCP and UDP payloads and proxy accounting. It does not test public launcher compatibility or prove a speed increase. Real launcher downloads across separate physical Internet connections still need manual validation.

@@ -28,12 +28,12 @@ The POSIX-only `chmod` implementation was replaced on Windows with an explicit d
 
 Cleanup removes only the deny introduced by this fixture and compares the ACL listing with its original value. A successful write after restoration is also checked.
 
-The first nine-case attempt reported eight network passes and a permission-harness cleanup failure: `icacls /restore` requested a Windows privilege unavailable to the test user. The temporary deny was subsequently removed and that failed fixture was cleaned up. A second permission-only attempt exposed that a generic `W` deny also interfered with the directory-listing assertion. Restricting the deny to creation rights preserved read access while still proving both the direct write and download start were refused. The final permission-only run passed, including exact ACL restoration and fixture teardown.
+The first run passed all eight network cases, but permission-test cleanup failed because `icacls /restore` required a privilege the test account did not have. The temporary deny was removed manually. A second attempt showed that denying all writes also blocked the directory-listing check. The test now denies only file and directory creation, leaving reads available. The final run passed, restored the original ACL, and cleaned up its fixture.
 
 ## Evidence and checks
 
-- Eight passing network cases and the first permission-harness error: `artifacts/previously-skipped-tests` and the recorded Playwright output (**8 passed, 1 failed**, no skips).
-- Second permission-harness diagnostic: `artifacts/windows-permission-retest`.
+- First run (eight network passes and a cleanup error): `artifacts/previously-skipped-tests` (**8 passed, 1 failed**).
+- Second permission-test diagnostic: `artifacts/windows-permission-retest`.
 - Final Windows permission case: `artifacts/windows-permission-final/.last-run.json` (**1 passed**, no skips).
 - E2E TypeScript checking and ESLint on the modified test files passed.
 - At the time of these test reruns, installer bytes remained unchanged: `artifacts/net-merge-release/fluxfetch-2.0.1-net-merge-tested-setup.exe`, SHA-256 `412D9758ADE71B3C2EED6C2FB3FCEE4CED3089F43788276F9A90CD8797A56A6F`. A subsequent user-requested rebuild is recorded in [the current build report](net-merge-and-concurrent-downloads-2026-10-26.md).

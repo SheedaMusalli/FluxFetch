@@ -1,6 +1,6 @@
 # Contributing to FluxFetch
 
-Thanks for helping improve FluxFetch. Keep changes focused and include the checks that matter for your change.
+Keep changes focused and run the checks that cover them.
 
 ## Development setup
 
@@ -22,11 +22,11 @@ npm run format:check
 npm run test:e2e:smoke
 ```
 
-Run the full browser and download suite with `npm run test:e2e`. Include manual verification steps and a screenshot for UI changes when useful.
+Run the full browser and download suite with `npm run test:e2e`. For UI changes, include any manual steps you used and a screenshot when it helps reviewers.
 
 ## Pull requests
 
-Keep each pull request focused. For networking changes, explain any assumptions about HTTP range support, adapter routing, retries, and integrity checks. Avoid logging URLs, authentication headers, cookies, or credentials.
+For networking changes, note assumptions about HTTP ranges, adapter routing, retries, and integrity checks. Do not log URLs, auth headers, cookies, or credentials.
 
 ## Releases
 

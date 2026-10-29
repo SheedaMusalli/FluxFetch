@@ -145,7 +145,9 @@ test.describe('two networks @smoke', () => {
 
     // …and switching it on once more still resumes it.
     await fluxfetch.api.setDownloadNetwork(id, 'a', true)
-    await fluxfetch.waitForStatus('completed')
+    // This journey interrupts and restarts every stream several times. Allow slower Windows
+    // runners more than the default transfer timeout to finish the remaining blocks.
+    await fluxfetch.waitForStatus('completed', 60_000)
   })
 
   test('resumed with none on, it picks a network that is still there', async ({

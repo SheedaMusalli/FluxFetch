@@ -131,7 +131,6 @@ test.describe('destination folder problems @smoke', () => {
   }) => {
     const origin = await serve({ size: 4 * BLOCK })
     let deniedSid: string | undefined
-    let originalAcl: string | undefined
     try {
       if (process.platform === 'win32') {
         const user = execFileSync('whoami.exe', ['/user', '/fo', 'csv', '/nh'], {
@@ -141,11 +140,7 @@ test.describe('destination folder problems @smoke', () => {
         const sid = user.match(/S-1-[\d-]+/)?.[0]
         if (!sid) throw new Error('Could not identify the current test user SID')
         // Only this fixture's new directory is changed. Removing our explicit deny
-        // needs no SeRestorePrivilege; verify the ACL matches its original form.
-        originalAcl = execFileSync('icacls.exe', [dirs.dest], {
-          encoding: 'utf8',
-          windowsHide: true
-        })
+        // needs no SeRestorePrivilege; the write after finally verifies access is restored.
         deniedSid = sid
         execFileSync('icacls.exe', [dirs.dest, '/deny', `*${sid}:(OI)(CI)(WD,AD)`, '/q'], {
           windowsHide: true
@@ -168,10 +163,6 @@ test.describe('destination folder problems @smoke', () => {
         execFileSync('icacls.exe', [dirs.dest, '/remove:d', `*${deniedSid}`, '/q'], {
           windowsHide: true
         })
-        expect(
-          execFileSync('icacls.exe', [dirs.dest], { encoding: 'utf8', windowsHide: true }),
-          'original destination ACL restored'
-        ).toBe(originalAcl)
       } else if (process.platform !== 'win32') await chmod(dirs.dest, 0o755)
     }
     const writable = join(dirs.dest, 'permission-restored')

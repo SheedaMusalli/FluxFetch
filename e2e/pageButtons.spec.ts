@@ -36,7 +36,9 @@ test('no floating button, direct media controls, capture fallback, and unsupport
       )
       return
     }
-    if (req.url === '/browser-only.zip' && !req.headers['sec-fetch-mode']) {
+    // FluxFetch preflights with a one-byte range. Reject that probe, but let Chrome's
+    // ordinary full download continue; Fetch Metadata headers vary by browser version.
+    if (req.url === '/browser-only.zip' && req.headers.range === 'bytes=0-0') {
       browserOnlyRefused++
       res.writeHead(403, { 'Content-Type': 'text/html' })
       res.end('Browser session required')

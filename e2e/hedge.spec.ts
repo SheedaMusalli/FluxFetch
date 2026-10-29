@@ -49,7 +49,9 @@ test.describe('racing a slow block', () => {
   })
 
   test('the slow holder can win, and then the hedge is dropped', async ({ fluxfetch, serve }) => {
-    const origin = await serve({ size: BLOCKS * BLOCK })
+    // No queued primary blocks: once the three fast holders finish, an idle stream is
+    // available to race the final slow block on both Windows and Linux runners.
+    const origin = await serve({ size: (SLOW + 1) * BLOCK })
     // The holder is slowish (about 1.6 s for the block); the hedge is slower still.
     origin.setRule(
       answerRequestsInSlowBlock((n) => (n === 0 ? { crawl: 40_000 } : { crawl: 3000 }))()

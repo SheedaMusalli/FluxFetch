@@ -164,7 +164,6 @@ export function HistoryScreen({
   })
   const [headerMenu, setHeaderMenu] = useState<{ x: number; y: number } | null>(null)
   const [omniLinkInstalled, setOmniLinkInstalled] = useState(false)
-  const [netMergeInstalled, setNetMergeInstalled] = useState(false)
 
   useEffect(() => {
     if (window.fluxfetch.platform === 'win32') {
@@ -172,10 +171,6 @@ export function HistoryScreen({
         .isOmniLinkInstalled()
         .then(setOmniLinkInstalled)
         .catch(() => setOmniLinkInstalled(false))
-      window.fluxfetch
-        .netMergeStatus()
-        .then((s) => setNetMergeInstalled(s.installed))
-        .catch(() => setNetMergeInstalled(false))
     }
   }, [])
 
@@ -537,7 +532,7 @@ export function HistoryScreen({
               </TooltipContent>
             </Tooltip>
           )}
-          {window.fluxfetch.platform === 'win32' && netMergeInstalled && <NetMergeDialog />}
+          {window.fluxfetch.platform === 'win32' && <NetMergeDialog />}
           <Button variant="outline" onClick={onQueue}>
             Queue & schedule
           </Button>

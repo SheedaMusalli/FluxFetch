@@ -2,6 +2,7 @@ import { stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Page } from '@playwright/test'
 import { BLOCK, expect, interfacesEnv, NETWORKS, test } from './fixtures'
+import { IpcChannels } from '../src/shared/ipc-channels'
 
 // G. A handful of journeys through the real UI, to prove the screens are wired to the main
 // process. Download correctness is covered far more thoroughly by the API-level specs; these
@@ -616,6 +617,13 @@ test.describe('settings @smoke', () => {
       (await fluxfetch.page.evaluate(() => window.fluxfetch.platform)) !== 'win32',
       'OmniLink is a Windows-only integration'
     )
+    // E2E builds do not include the optional OmniLink binary. Stub its availability so this
+    // test checks the button and help text without depending on release-only assets.
+    await fluxfetch.evaluateMain(({ ipcMain }, channels) => {
+      ipcMain.removeHandler(channels.isOmniLinkInstalled)
+      ipcMain.handle(channels.isOmniLinkInstalled, () => true)
+    }, IpcChannels)
+    await fluxfetch.page.reload()
     const button = fluxfetch.page.getByRole('button', { name: 'Run OmniLink' })
     await expect(button).toBeVisible()
     await button.hover()
